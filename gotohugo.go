@@ -3,30 +3,39 @@
 +++
 title = "gotohugo: Converting commented Go files to Markdown with custom Hugo shortcuts"
 author = "Christoph Berger"
-date = "2016-04-14"
-categories = ["tool"]
+date = "2016-04-25"
+categories = ["Blogging"]
 tags = ["Go", "Hugo", "Markdown", "Hype"]
 +++
 
 
-`gotohugo` converts a .go file into a Markdown file. Comments can (and should) contain [Markdown](https://daringfireball.net/projects/markdown) text. Comment delimiters are stripped, and Go code is put into code fences.
+`gotohugo` converts a .go file into a Markdown file. Comments can (and should) contain [Markdown](https://daringfireball.net/projects/markdown) text. Comment delimiters are stripped, and Go code is put into code fences. There are also two extra features included for free.
 
 <!--more-->
 
 Extra #1: A non-standard "HYPE" tag can be used for inserting Tumult Hype HTML animations. This tag resembles an image tag but with the "!" replaced by "HYPE", like: `HYPE[Description](path/to/exported_hype.html)`. It is replaced by the corresponding HTML snippet that loads the animation. To create the anmiation files, export your Tumult Hype animation to HTML5 and ensure the "Also save HTML file" checkbox is checked. `gotohugo` then extracts the required HTML snippet from the file and copies the `hyperesources` directory to the output folder.
 
-Extra #2: gotohugo inserts Hugo shortcodes around doc and code parts to help creating a side-by-side layout à la docgo.
+Extra #2: gotohugo inserts Hugo shortcodes around doc and code parts to help creating a side-by-side layout à la docgo, where the code comments appear in an extra column left to the code. This very much adds to readability IMHO. This feature also comes with full Responsive Layout capability - if the viewport is too narrow, code and comment collapse into a single column.
 
 
 ## Usage
 
-	gotohugo [-outdir "path/to/outputDir"] [-nocopy] <gofile.go>
+	gotohugo [-o "path/to/outputDir"] <gofile.go>
 
 ### Flags
 
-*`-outdir`: Specifies the output directory. Defaults to "out".
-*`-nocopy`: If set, the image and animation files do not get copied to the output directory.
-*`-subdir`: If set, the image and animation files are copied into &lt;outdir>/&lt;subdir>, rather than into &lt;outdir>.
+*`-o`: Specifies the output directory. Defaults to `./out`. The path must already exist. By convention it is the path to Hugo's `content/post/` directory.
+
+## Notes
+
+1. Unlike gotomarkdown, gotohugo does not handle any media files itself. All media files must be available at the output destination, in a subdirectory whose name is the base name of the go file.
+   Example: mytutorial.go gets turned into /post/mytutorial.md, and all meda files then must reside in /post/mytutorial/...
+   The point here is that right now, Hugo does not create subdirectories for posts; they all are created in `<hugo>/content/post`. To reduce clutter, all media files related to a post should therefore be put into a subdirectory of the post's base name.
+   As far as Hugo is concerned, this is just a convention; however, gotohugo relies on this file structure.
+
+2. To play nice with the Permalink feature of Hugo, gotohugo automatically creates the full path to the image file, starting from the content directory. That is, if your image resides in `content/post/mypost/myimage.jpg`, and your Markdown tag is like, `[My Image](myimage.jpg)`, gotohugo expands the tag to `[My Image](/post/mypost/myimage.jpg`.
+
+3. Because of 1., gotohugo tries to find any Hype animation hmtl file in `outputDir/basename/hypename.html`. Gotohugo needs this file to extract the HTML snippet that replaces the HYPE tag. If gotohugo does not find the animation HTML that the HYPE tag points to,
 
 ## License
 
@@ -40,16 +49,15 @@ This code is governed by a BSD 3-clause license that can be found in LICENSE.txt
 package main
 
 import (
-	"errors"
 	"flag"
 	"io/ioutil"
 	"log"
-	"os"
-	"os/exec"
-	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/davecgh/go-spew/spew"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -57,8 +65,9 @@ const (
 	commentStartPtrn = `^\s*/\*\s?`
 	commentEndPtrn   = `\s?\*/\s*$`
 	directivePtrn    = `^//go:`
-	imagePtrn        = `[^\x60]!\[[^\]]+\]\( *([^"\)]+) *["\)]` // \x60 = backtick
+	imagePtrn        = `([^\x60]!\[[^\]]+\]\( *)([^\)]+\))` // \x60 = backtick
 	hypePtrn         = `[^\x60]HYPE\[[^\]]+\]\( *([^\)]+) *\)`
+	srcPtrn          = `(src=")(.*\.hyperesources/)`
 )
 
 var (
@@ -68,28 +77,13 @@ var (
 	directive        = regexp.MustCompile(directivePtrn)    // pattern for //go: directive, like //go:generate
 	imageTag         = regexp.MustCompile(imagePtrn)        // pattern for Markdown image tag
 	hypeTag          = regexp.MustCompile(hypePtrn)         // pattern for Hype animation tag
+	srcTag           = regexp.MustCompile(srcPtrn)          // pattern for Hype container div src tag
 	allCommentDelims = regexp.MustCompile(commentPtrn + "|" + commentStartPtrn + "|" + commentEndPtrn)
-	outDir           = flag.String("outdir", "out", "Output directory")
-	dontCopyMedia    = flag.Bool("nocopy", false, "Do not copy media files to outdir")
-	subDir           = flag.Bool("subdir", false, "Use subdirectory <outdir>/<gofilebasename>/ for media files, ex.: out/gotohugo/")
+	outDir           = flag.String("out", "out", "Output directory")
 )
 
 // ## First, some helper functions
 //
-// copyFiles copies a list of files or directories to a destination directory.
-// The destination path must exist.
-// The source paths must be relative. (Usually they are, as they are taken from an MD image tag)
-func copyFiles(dest string, srcpaths map[string]struct{}) (err error) {
-	var result []byte
-	for src, _ := range srcpaths {
-		result, err = exec.Command("cp", "-R", path.Clean(strings.Trim(src, " \t")), path.Clean(path.Join(dest, src))).Output() // TODO: Windows "copy"
-		if err != nil {
-			return errors.New(string(result) + "\n" + err.Error())
-		}
-	}
-	return nil
-}
-
 // commentFinder returns a function that determines if the current line belongs to
 // a comment region.
 func commentFinder() func(string) bool {
@@ -133,44 +127,62 @@ func isDirective(line string) bool {
 	return false
 }
 
-// extractMediaPath receives a line of text and searches for an image
-// tag. If it finds one, it adds the path to the media list.
+// extendPath takes a string that should contain a filename
+// and prepends `/post/<basename>/` to it.
+func extendPath(filename, basename string) string {
+	return filepath.Join("/post", basename, filename)
+}
+
+// func extendSrc takes a string that should contain the line from the HTML snippet that
+// starts with `<div id="animation_hype_container"...` and prepends `/post/<basename>` to
+// the src="..." string.
+func extendSrc(src, basename string) string {
+	return string(srcTag.ReplaceAll([]byte(src), []byte("$1"+extendPath("$2", basename))))
+}
+
+// extendImagePath receives a line of text and searches for an image
+// tag. If it finds one, it extends the image path to include
+// `/post/<basename>/` and returns the modified line.
+// Otherwise it returns the unmodified line.
 // NOTE: The function can only handle one image tag per line.
-func extractMediaPath(line string) (path string, err error) {
-	matches := imageTag.FindStringSubmatch(line)
-	if len(matches) == 0 {
-		return "", nil
-	}
-	if len(matches) == 1 {
-		return "", errors.New("Error: Found image tag but no valid path, in line:\n" + line)
-	}
-	return strings.Trim(matches[1], " \t"), nil
+func extendImagePath(line, basename string) (path string, err error) {
+	spew.Dump(imageTag.FindStringSubmatch(line))
+	// if len(matches) == 0 {
+	// return line, nil
+	// }
+	// if len(matches) < 4 {
+	// return "", errors.New("Found image tag but no valid path, in line:\n" + line)
+	// }
+	spew.Println(string(imageTag.ReplaceAll([]byte(line), []byte("$1"+extendPath("$2", basename)))))
+	return string(imageTag.ReplaceAll([]byte(line), []byte("$1"+extendPath("$2", basename)))), nil // TODO change strings into byte[]s as much as possible
+	//return matches[0] + matches[1] + extendPath(strings.Trim(matches[2], " \t"), basename) + matches[3], nil
 }
 
 // imageTag should properly match the following image tags:
 //
-// `![Alt text](gotohugo_animation.gif)`
+// `![Alt text](animation.gif)`
 //
-// ![Alt text](gotohugo_animation.gif)
+// ![Alt text](animation.gif)
+// (Same but with spaces around the path:) ![Alt text]( animation.gif )
 //
-// `![Alt text](gotohugo_animation.gif "Title")` (With image title)
+// `![Alt text](animation.gif "Title")` (With image title)
 //
-// ![Alt text](gotohugo_animation.gif "Title")
+// ![Alt text](animation.gif "Title")
 //
-// `![Alt text](gotohugo image.jpg)` (With a space in the path)
+// `![Alt text](an image.png)` (With a space in the path)
 //
-// ![Alt text](gotohugo image.jpg)
+// ![Alt text](an image.png)
 //
-// `![Alt text](gotohugo image.jpg "Title")`  (With space and title)
+// `![Alt text](an image.png "Title")`  (With space and title)
 //
-// ![Alt text](gotohugo image.jpg "Title")
+// ![Alt text](an image.png "Title")
 
 // getHTMLSnippet opens the file determined by `path`, and scans the file for the HTML
 // snippet to insert. It returns the HTML snippet.
-func getHTMLSnippet(path string) (out string, err error) {
+func getHTMLSnippet(path, basename string) (out string, err error) {
 	hypeHTML, err := ioutil.ReadFile(path)
 	if err != nil {
-		return "", errors.New("Unable to open Hype file " + path + "\n" + err.Error())
+		return "", errors.Wrap(err, "Unable to open Hype file "+path)
 	}
 	inSnippet := false
 	// Remove carriage returns.
@@ -188,19 +200,20 @@ func getHTMLSnippet(path string) (out string, err error) {
 			inSnippet = false // there can be more than one "end copy" strings in the file
 		}
 		if inSnippet {
-			out += strings.Trim(line, "	\t") + "\n"
+			out += extendSrc(strings.Trim(line, "	\t"), basename) + "\n"
 		}
 	}
 	return out + "\n", nil
 }
 
-// replaceHypeTag identifies a tag like `HYPE[description](gotohugo_animation.html)`
-// and replaces it by the correspoding HTML snippet generated by [Tumult Hype](http://tumult.com).
+// replaceHypeTag identifies a tag like `HYPE[description](animation.html)`
+// and replaces it by the correspoding HTML snippet generated by [Tumult Hype](http://tumult.com)
+// through the "Export as HTML5 > Also save .html file" option.
 //
-// HYPE[description](gotohugo_animation.html)
+// HYPE[description](animation.html)
 //
 // It returns the (possibly modified) line and the path to the hyperesources directory.
-func replaceHypeTag(line string) (out string, path string, err error) {
+func replaceHypeTag(line, base string) (out string, path string, err error) {
 	matches := hypeTag.FindStringSubmatch(line)
 	if len(matches) == 0 {
 		return line, "", nil
@@ -209,23 +222,21 @@ func replaceHypeTag(line string) (out string, path string, err error) {
 		return "", "", errors.New("Error: Found Hype tag but no valid path, in line:\n" + line)
 	}
 	path = matches[1]
-	out, err = getHTMLSnippet(path)
-	out += "<noscript><em>Please enable JavaScript to view the animation.</em></noscript>\n"
+	out, err = getHTMLSnippet(filepath.Join(*outDir, base, path), base)
+	out += "<noscript class=\"nohype\"><em>Please enable JavaScript to view the animation.</em></noscript>\n"
 	path = strings.Replace(path, ".html", ".hyperesources", -1)
 	return out, path, err
 }
 
 // convert receives a string containing commented Go code and converts it
-// line by line into a Markdown document. Collect and return any media files
-// found during this process.
-func convert(in string) (out string, media map[string]struct{}, err error) {
+// line by line into a Markdown document.
+func convert(in, base string) (out string, err error) {
 	const (
 		neither = iota
 		comment
 		code
 	)
 	lastLine := neither
-	media = map[string]struct{}{}
 
 	// Remove carriage returns.
 	in = strings.Replace(in, "\r", "", -1)
@@ -242,23 +253,17 @@ func convert(in string) (out string, media map[string]struct{}, err error) {
 				out += "```\n\n"
 			}
 			lastLine = comment
-			// Detect `![image](path)` tags and add the path to the
-			// media list.
-			path, err := extractMediaPath(line)
-			if err != nil {
-				return "", nil, errors.New("Unable to extract media path from line " + line + "\n" + err.Error())
-			}
-			if path != "" {
-				media[path] = struct{}{}
-			}
 
-			repl, path, err := replaceHypeTag(line)
+			// If the line contains an image tag, extend the path of the tag.
+			line, err := extendImagePath(line, base)
+
+			// If the line contains a Hype tag, replace it with the Hype HTML snippet.
+			repl, path, err := replaceHypeTag(line, base)
 			if err != nil {
-				return "", nil, errors.New("Failed generating Hype tag from line " + line + "\n" + err.Error())
+				return "", errors.Wrap(err, "Failed generating Hype tag from line "+line)
 			}
 			if repl != "" && path != "" {
 				out += repl
-				media[path] = struct{}{}
 			} else {
 				// Strip out any comment delimiter and add the line to the output.
 				out += allCommentDelims.ReplaceAllString(line, "") + "\n"
@@ -277,7 +282,7 @@ func convert(in string) (out string, media map[string]struct{}, err error) {
 	if lastLine == code {
 		out += "\n```\n"
 	}
-	return out, media, nil
+	return out, nil
 }
 
 // ## Converting a file
@@ -290,23 +295,12 @@ func base(name string) string {
 	return strings.TrimSuffix(name, filepath.Ext(name))
 }
 
-// `createPath` receives a path and creates all directories in that path
-// that are missing. Permissions are set to u+rwx go+r.
-func createPath(p string) (err error) {
-	if path.Clean(p) != "." {
-		err = os.MkdirAll(p, 0744) // -rwxr--r--
-		if err != nil {
-			return errors.New("Cannot create path: " + p + " - Error: " + err.Error())
-		}
-	}
-	return nil
-}
-
 // ### Now the actual conversion
 //
 // `convertFile` takes a file name, reads that file, converts it to
-// Markdown, and writes it to `*outDir/&lt;basename>.md
-func convertFile(filename string) (media map[string]struct{}, err error) {
+// Markdown, and writes it to `*outDir/<basename>.md`
+// The path must already exist.
+func convertFile(filename string) (err error) {
 	src, err := ioutil.ReadFile(filename)
 	if err != nil {
 		log.Fatal("Cannot read file " + filename + "\n" + err.Error())
@@ -315,19 +309,15 @@ func convertFile(filename string) (media map[string]struct{}, err error) {
 	ext := ".md"
 	basename := base(name) // strip ".go"
 	outname := filepath.Join(*outDir, basename) + ext
-	md, media, err := convert(string(src))
+	md, err := convert(string(src), basename)
 	if err != nil {
-		return nil, errors.New("Error converting " + filename + "\n" + err.Error())
-	}
-	err = createPath(*outDir)
-	if err != nil {
-		return nil, err // The error message from createPath is chatty enough.
+		return errors.Wrap(err, "Error converting "+filename)
 	}
 	err = ioutil.WriteFile(outname, []byte(md), 0644) // -rw-r--r--
 	if err != nil {
-		return nil, errors.New("Cannot write file " + outname + " \n" + err.Error())
+		return errors.Wrap(err, "Cannot write file "+outname)
 	}
-	return media, nil
+	return nil
 }
 
 // ## main - Where it all starts
@@ -336,24 +326,9 @@ func main() {
 	flag.Parse()
 	for _, filename := range flag.Args() {
 		log.Println("Converting", filename)
-		media, err := convertFile(filename)
+		err := convertFile(filename)
 		if err != nil {
-			log.Fatal("[Conversion Error] " + err.Error())
-		}
-		if *dontCopyMedia == false && media != nil && (path.Clean(*outDir) != "." || *subDir == true) {
-			log.Println("Copying media")
-			out := *outDir
-			if *subDir {
-				out = filepath.Join(*outDir, base(filename))
-				err := createPath(out)
-				if err != nil {
-					log.Fatal("[CopyMedia Error] Cannot create subdir for media files.\n" + err.Error())
-				}
-			}
-			err := copyFiles(out, media)
-			if err != nil {
-				log.Fatal("[CopyMedia Error] cp failed:\n" + err.Error())
-			}
+			log.Fatal(errors.Wrap(err, "Conversion Error"))
 		}
 	}
 	log.Println("Done.")
