@@ -1,0 +1,192 @@
+/* goweave CSS 
+
+ Most measurements are given in em. See [The Goldilocks Approach](http://goldilocksapproach.com/demo/)
+ for the rationale behind this.
+ 
+ */
+
+html {
+	font-size: 12pt;
+}
+
+body {
+    background-color: #f8f8f8;
+    margin: 0em;
+    padding: 0em;
+    font-family: 'Lato', 'Helvetica', sans-serif;
+	font-size: 1rem;
+	line-height: 1.3em;
+}
+
+tt, code, kbd, samp {
+    font-family: Menlo, Monaco, Consolas, "Lucida Console", monospace;
+	font-size: .85rem
+}
+
+
+#goweave div.table {
+	display: table;
+	width: 100%;
+	border-collapse: collapse;
+}
+
+#goweave div.tr {
+	display: table-row;
+}
+
+#goweave div.td {
+	display: table-cell;
+}
+
+#goweave p {
+    margin-top: 0em;
+    margin-right: 0em;
+    margin-bottom: 0.8em;
+    margin-left: 0em;
+}
+
+#goweave div {
+    display: inline;
+}
+
+#goweave .keyword {
+    color: #c17600;
+}
+
+#goweave .literal {
+    color: #CA9C00;
+}
+
+#goweave .ident {
+    color: #404040;
+}
+
+#goweave .operator {
+	color: #404040;
+}
+
+#goweave .comment {
+    color: #3ba300
+}
+
+#goweave h1, h2, h3, h4, h5 {
+	font-family: 'Averia Libre', 'Lato', 'Helvetica', sans-serif;
+	line-height: 1em;
+    text-align: left;
+    margin-top: 0em;
+    margin-right: 0em;
+    margin-bottom: 1em;
+    margin-left: 0em;
+}
+
+#goweave .nocode h1, .nocode h2, .nocode h3, .nocode h4, .nocode h5 {
+    margin-top: 1.6em;
+}
+
+#goweave .doc {
+    vertical-align: top;
+    color: #404040;
+	font-size: 1rem;
+    min-width: 20em;
+    max-width: 30em;
+	width:auto;
+    padding-top: 0em;
+    padding-right: 1em;
+    padding-left: 2em;
+    overflow-x: hidden;
+}
+
+#goweave .code pre {
+	margin-top: 0em
+}
+
+#goweave .code {
+	width:auto;
+    padding-left: 2em;
+    padding-right: 1em;
+	margin-right: 0em;
+	overflow-x: auto;
+    vertical-align: top;
+	background-color: #ececec;
+}
+
+#goweave .code pre code  {
+    color: #404040;
+}
+
+#goweave div.tr.section.nocode {
+	display: table-caption;
+}
+
+#goweave div.td.doc.nocode {
+	display: block;
+	margin-right: auto;
+	margin-left: auto;
+	margin-bottom: 1.6em;
+}
+#goweave div.td.code.empty { 
+	display: none;
+}
+
+/* Narrow viewports */
+@media 
+only screen and (max-width: 60em) {
+
+	#goweave div.table { 
+		display: block;
+	  	width: 100%; 
+		margin: 0;
+		border: none;
+	}
+
+	#goweave div.tr { 
+		display: block; 
+	}
+
+	#goweave div.td {
+		display: block; 
+		padding: 1em 1em 1em;
+	}
+
+	#goweave .doc {
+		min-width: 0em;
+		padding-top: 1em
+	}
+
+	#goweave .code {
+		padding-top: 1em
+	}
+
+	#goweave div.tr.section.nocode {
+		display: block;
+	}
+	#goweave div.td.code.empty { 
+		display: none;
+	}
+}
+
+/* Very narrow viewports */
+@media 
+only screen and (max-width: 45em) {
+
+	#goweave div.tr {
+		padding: 0em;
+	}
+ 
+	#goweave div.td {
+		padding: 0.5em .5em .5em;
+	}
+}
+
+@media
+print {
+
+	body {
+		background-color: #fff;
+	}
+
+	#goweave .code {
+		background-color: #fff;
+	}
+
+}
