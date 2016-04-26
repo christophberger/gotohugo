@@ -35,7 +35,12 @@ Extra #2: gotohugo inserts Hugo shortcodes around doc and code parts to help cre
 
 2. To play nice with the Permalink feature of Hugo, gotohugo automatically creates the full path to the image file, starting from the content directory. That is, if your image resides in `content/post/mypost/myimage.jpg`, and your Markdown tag is like, `[My Image](myimage.jpg)`, gotohugo expands the tag to `[My Image](/post/mypost/myimage.jpg`.
 
-3. Because of 1., gotohugo tries to find any Hype animation hmtl file in `outputDir/basename/hypename.html`. Gotohugo needs this file to extract the HTML snippet that replaces the HYPE tag. If gotohugo does not find the animation HTML that the HYPE tag points to,
+3. Because of 1., gotohugo tries to find any Hype animation hmtl file in `outputDir/basename/hypename.html`. Gotohugo needs this file to extract the HTML snippet that replaces the HYPE tag. If gotohugo does not find the animation HTML that the HYPE tag points to, it subtitutes a warning message that will be visible on the rendered page.
+
+## TODO
+
+[] Replace strings with []byte where this can help avoiding excessive copying & garbage creating.
+
 
 ## License
 
@@ -64,6 +69,7 @@ const (
 	commentStartPtrn = `^\s*/\*\s?`
 	commentEndPtrn   = `\s?\*/\s*$`
 	directivePtrn    = `^//go:`
+	frontmatterPtrn  = `^\s*(\+\+\+)|(---)\s*$`
 	imagePtrn        = `([^\x60]!\[[^\]]+\]\( *)([^\)]+\))` // \x60 = backtick
 	hypePtrn         = `[^\x60]HYPE\[[^\]]+\]\( *([^\)]+) *\)`
 	srcPtrn          = `(src=")(.*\.hyperesources/)`
@@ -74,6 +80,7 @@ var (
 	commentStart     = regexp.MustCompile(commentStartPtrn) // pattern for /* comment delimiter
 	commentEnd       = regexp.MustCompile(commentEndPtrn)   // pattern for */ comment delimiter
 	directive        = regexp.MustCompile(directivePtrn)    // pattern for //go: directive, like //go:generate
+	frontmatterDelim = regexp.MustCompile(frontmatterPtrn)  // pattern for Hugo front matter delimiters
 	imageTag         = regexp.MustCompile(imagePtrn)        // pattern for Markdown image tag
 	hypeTag          = regexp.MustCompile(hypePtrn)         // pattern for Hype animation tag
 	srcTag           = regexp.MustCompile(srcPtrn)          // pattern for Hype container div src tag
@@ -126,6 +133,30 @@ func isDirective(line string) bool {
 	return false
 }
 
+// frontmatterFinder returns a function that determines if the current line
+// belongs to Hugo front matter.
+func frontmatterFinder() func(string) bool {
+	frontmatterInProgress := false
+	return func(line string) bool {
+		if frontmatterDelim.FindString(line) != "" {
+			// Front matter delimiter found.
+			// The first one starts the front matter.
+			if frontmatterInProgress == false {
+				frontmatterInProgress = true
+				return true
+			} else {
+				frontmatterInProgress = false
+				return true
+			}
+		}
+		return frontmatterInProgress
+	}
+}
+
+// isInFrontmatter returns true if the current line belongs to
+// Hugo front matter.
+var isInFrontmatter func(string) bool = frontmatterFinder()
+
 // extendPath takes a string that should contain a filename
 // and prepends `/post/<basename>/` to it.
 func extendPath(filename, basename string) string {
@@ -171,7 +202,9 @@ func extendImagePath(line, basename string) string {
 func getHTMLSnippet(path, basename string) (out string) {
 	hypeHTML, err := ioutil.ReadFile(path)
 	if err != nil {
-		return "**No Hype file found at " + path + "\nPlease run gohugo again after creating the Hype animation HTML export."
+		wrappedErr := errors.Wrap(err, "**No Hype file found at "+path+". Please run gohugo again after creating the Hype animation HTML export.")
+		log.Println(wrappedErr.Error()) // notify the developer via shell
+		return wrappedErr.Error()       // remind the developer by adding the message to the rendered page
 	}
 	inSnippet := false
 	// Remove carriage returns.
@@ -217,6 +250,17 @@ func replaceHypeTag(line, base string) (out string, path string, err error) {
 	return out, path, err
 }
 
+// shortcode returns a Hugo shortcode of the form
+// &#123;{% gotohugo <name> %}}.
+func shortcode(name string) string {
+	return "{" + "{% gotohugo " + name + " %}}\n"
+}
+
+// shortcodeEnd returns the end marker of a shortcode.
+func shortcodeEnd() string {
+	return "{" + "{% /gotohugo %}}\n"
+}
+
 // convert receives a string containing commented Go code and converts it
 // line by line into a Markdown document.
 func convert(in, base string) (out string, err error) {
@@ -224,10 +268,11 @@ func convert(in, base string) (out string, err error) {
 		neither = iota
 		comment
 		code
+		frontmatter
 	)
 	lastLine := neither
 
-	// Remove carriage returns.
+	// Turn CR/LF line endings into pure LF line endings.
 	in = strings.Replace(in, "\r", "", -1)
 	// Split at newline and process each line.
 	for _, line := range strings.Split(in, "\n") {
@@ -235,12 +280,25 @@ func convert(in, base string) (out string, err error) {
 		if isDirective(line) {
 			continue
 		}
+		// Determine if the line belongs to Hugo front matter.
+		if isInFrontmatter(line) {
+			lastLine = frontmatter
+		} else {
+			// After the front matter, start the intro section.
+			if lastLine == frontmatter {
+				out += shortcode("intro")
+				lastLine = comment
+			}
+		}
 		// Determine if the line belongs to a comment.
-		if isInComment(line) {
+		if isInComment(line) && lastLine != frontmatter {
 			// Close the code block if a new comment begins.
 			if lastLine == code {
 				out += "```\n\n"
+				out += shortcodeEnd()
+				out += shortcode("doc")
 			}
+			// Start a comment block if the last line was neither doc nor code.
 			lastLine = comment
 
 			// If the line contains an image tag, extend the path of the tag.
@@ -262,6 +320,8 @@ func convert(in, base string) (out string, err error) {
 			// but take care of empty lines between two comment lines.
 			if lastLine == comment && len(line) > 0 {
 				lastLine = code
+				out += shortcodeEnd()
+				out += shortcode("code")
 				out += "\n```go\n"
 			}
 			// Add code lines verbatim to the output.
@@ -270,6 +330,7 @@ func convert(in, base string) (out string, err error) {
 	}
 	if lastLine == code {
 		out += "\n```\n"
+		out += shortcodeEnd()
 	}
 	return out, nil
 }
