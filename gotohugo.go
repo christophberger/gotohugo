@@ -56,7 +56,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/pkg/errors"
 )
 
@@ -144,18 +143,8 @@ func extendSrc(src, basename string) string {
 // tag. If it finds one, it extends the image path to include
 // `/post/<basename>/` and returns the modified line.
 // Otherwise it returns the unmodified line.
-// NOTE: The function can only handle one image tag per line.
-func extendImagePath(line, basename string) (path string, err error) {
-	spew.Dump(imageTag.FindStringSubmatch(line))
-	// if len(matches) == 0 {
-	// return line, nil
-	// }
-	// if len(matches) < 4 {
-	// return "", errors.New("Found image tag but no valid path, in line:\n" + line)
-	// }
-	spew.Println(string(imageTag.ReplaceAll([]byte(line), []byte("$1"+extendPath("$2", basename)))))
-	return string(imageTag.ReplaceAll([]byte(line), []byte("$1"+extendPath("$2", basename)))), nil // TODO change strings into byte[]s as much as possible
-	//return matches[0] + matches[1] + extendPath(strings.Trim(matches[2], " \t"), basename) + matches[3], nil
+func extendImagePath(line, basename string) string {
+	return string(imageTag.ReplaceAll([]byte(line), []byte("$1"+extendPath("$2", basename))))
 }
 
 // imageTag should properly match the following image tags:
@@ -179,10 +168,10 @@ func extendImagePath(line, basename string) (path string, err error) {
 
 // getHTMLSnippet opens the file determined by `path`, and scans the file for the HTML
 // snippet to insert. It returns the HTML snippet.
-func getHTMLSnippet(path, basename string) (out string, err error) {
+func getHTMLSnippet(path, basename string) (out string) {
 	hypeHTML, err := ioutil.ReadFile(path)
 	if err != nil {
-		return "", errors.Wrap(err, "Unable to open Hype file "+path)
+		return "**No Hype file found at " + path + "\nPlease run gohugo again after creating the Hype animation HTML export."
 	}
 	inSnippet := false
 	// Remove carriage returns.
@@ -203,7 +192,7 @@ func getHTMLSnippet(path, basename string) (out string, err error) {
 			out += extendSrc(strings.Trim(line, "	\t"), basename) + "\n"
 		}
 	}
-	return out + "\n", nil
+	return out + "\n"
 }
 
 // replaceHypeTag identifies a tag like `HYPE[description](animation.html)`
@@ -222,7 +211,7 @@ func replaceHypeTag(line, base string) (out string, path string, err error) {
 		return "", "", errors.New("Error: Found Hype tag but no valid path, in line:\n" + line)
 	}
 	path = matches[1]
-	out, err = getHTMLSnippet(filepath.Join(*outDir, base, path), base)
+	out = getHTMLSnippet(filepath.Join(*outDir, base, path), base)
 	out += "<noscript class=\"nohype\"><em>Please enable JavaScript to view the animation.</em></noscript>\n"
 	path = strings.Replace(path, ".html", ".hyperesources", -1)
 	return out, path, err
@@ -255,7 +244,7 @@ func convert(in, base string) (out string, err error) {
 			lastLine = comment
 
 			// If the line contains an image tag, extend the path of the tag.
-			line, err := extendImagePath(line, base)
+			line = extendImagePath(line, base)
 
 			// If the line contains a Hype tag, replace it with the Hype HTML snippet.
 			repl, path, err := replaceHypeTag(line, base)
