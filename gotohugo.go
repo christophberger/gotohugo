@@ -212,24 +212,26 @@ func extendImagePath(line, basename string) string {
 	return string(imageTag.ReplaceAll([]byte(line), []byte("$1"+extendPath("$2", basename))))
 }
 
-// imageTag should properly match the following image tags:
-//
-// `![Alt text](animation.gif)`
-//
-// ![Alt text](animation.gif)
-// (Same but with spaces around the path:) ![Alt text]( animation.gif )
-//
-// `![Alt text](animation.gif "Title")` (With image title)
-//
-// ![Alt text](animation.gif "Title")
-//
-// `![Alt text](an image.png)` (With a space in the path)
-//
-// ![Alt text](an image.png)
-//
-// `![Alt text](an image.png "Title")`  (With space and title)
-//
-// ![Alt text](an image.png "Title")
+/*
+imageTag should properly match the following image tags:
+
+`![Alt text](animation.gif)`
+
+![Alt text](animation.gif)
+(Same but with spaces around the path:) ![Alt text]( animation.gif )
+
+`![Alt text](animation.gif "Title")` (With image title)
+
+![Alt text](animation.gif "Title")
+
+`![Alt text](an image.png)` (With a space in the path)
+
+![Alt text](an image.png)
+
+`![Alt text](an image.png "Title")`  (With space and title)
+
+![Alt text](an image.png "Title")
+*/
 
 // getHTMLSnippet opens the file determined by `path`, and scans the file for the HTML
 // snippet to insert. It returns the HTML snippet.
@@ -268,19 +270,21 @@ func getHTMLSnippet(path, basename string) (out string) {
 //
 // HYPE[description](animation.html)
 //
-// It returns the (possibly modified) line.
-func replaceHypeTag(line, base string) (out string, err error) {
+// It returns:
+// * out: the (possibly modified) line
+// * found: true if a HYPE tag was found (and processed)
+func replaceHypeTag(line, base string) (out string, found bool, err error) {
 	matches := hypeTag.FindStringSubmatch(line)
 	if len(matches) == 0 {
-		return line, nil
+		return line, false, nil
 	}
 	if len(matches) == 1 {
-		return "", errors.New("Error: Found Hype tag but no valid path, in line:\n" + line)
+		return "", false, errors.New("Error: Found Hype tag but no valid path, in line:\n" + line)
 	}
 	path := matches[1]
 	out = getHTMLSnippet(filepath.Join(*outDir, base, path), base)
 	out += "<noscript class=\"nohype\"><em>Please enable JavaScript to view the animation.</em></noscript>\n"
-	return out, err
+	return out, true, err
 }
 
 // div returns a Hugo shortcode of the form
@@ -314,7 +318,7 @@ func convert(in, base string) (out string) {
 	// Split at newline and process each line.
 	for _, line := range strings.Split(in, "\n") {
 
-		// First we do some line processing that does **not** call
+		// First we do some line processing that does **not** necessarily call
 		// `continue`.
 
 		// Images and Hype animations can be located in the intro,
@@ -325,11 +329,15 @@ func convert(in, base string) (out string) {
 			line = extendImagePath(line, base)
 
 			// If the line contains a Hype tag, replace it with the Hype HTML snippet.
-			line, err := replaceHypeTag(line, base)
+			line, found, err := replaceHypeTag(line, base)
 			if err != nil {
 				e := errors.Wrap(err, "Failed generating Hype tag from line "+line)
 				errors.Print(e)
 				out += e.Error()
+			}
+			if found {
+				out += line
+				continue
 			}
 		}
 
@@ -340,16 +348,22 @@ func convert(in, base string) (out string) {
 				status = frontmatter
 				out += line + "\n"
 				continue
-			} else { // end of front matter. Summary section begins.
-				out += line + "\n"
-				status = summary
-				out += div("summary")
-				continue
 			}
 			// Discard anything before the front matter. There should **only**
 			// be an optional //go:... directive, and the start of the first
 			// multiline comment, and nothing else.
 			continue
+		}
+
+		// Within frontmatter, if the second delimiter is found,
+		// switch to summary section.
+		if status == frontmatter {
+			out += line + "\n"
+			if isFrontmatterDelim(line) { // end of front matter. Summary section begins.
+				status = summary
+				out += div("summary")
+				continue
+			}
 		}
 
 		// After the summary divider, start the intro.
@@ -380,6 +394,7 @@ func convert(in, base string) (out string) {
 		if status == none || status == code {
 			if isLineComment(line) {
 				if status == code {
+					out += "```\n\n"
 					out += divEnd()
 				}
 				status = comment
@@ -399,10 +414,10 @@ func convert(in, base string) (out string) {
 				continue
 			} else {
 				status = code
-				out += line + "\n"
 				out += divEnd()
 				out += div("code")
 				out += "\n```go\n"
+				out += line + "\n"
 				continue
 			}
 		}
@@ -430,6 +445,8 @@ func convert(in, base string) (out string) {
 
 		}
 
+		// At the end of a multline comment, we don't know for sure
+		// what comes next, so we set the status to none.
 		if status == doc {
 			if isCommentEnd(line) {
 				out += divEnd()
@@ -443,6 +460,12 @@ func convert(in, base string) (out string) {
 		if status == none {
 			out += line + "\n"
 		}
+	}
+
+	// The last line in the file might be code.
+	// We need a closing code fence then.
+	if status == code {
+		out += "\n```\n"
 	}
 	return out
 }
