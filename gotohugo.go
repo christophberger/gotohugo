@@ -37,6 +37,67 @@ Extra #2: gotohugo inserts Hugo shortcodes around doc and code parts to help cre
 
 3. Because of 1., gotohugo tries to find any Hype animation hmtl file in `outputDir/basename/hypename.html`. Gotohugo needs this file to extract the HTML snippet that replaces the HYPE tag. If gotohugo does not find the animation HTML that the HYPE tag points to, it subtitutes a warning message that will be visible on the rendered page.
 
+## How to write proper gotohugo-friendly code documents
+
+### Document sections and comment/code sections
+
+Comments and code shall get rendered side-by-side if the screen width allows. Pure documentation, on the other hand, shall be rendered as a single column, centered to the screen and with optimal reading width (about 30em).
+
+To distinguish between pure documentation and comment/code pairs without the need for extra markup, the following rules apply:
+
+### Documents are `/``*` comment regions `*``/`.
+
+Any "pure" document section, especially the very first one, **must** be enclosed in multiline comment delimiters.
+
+### Comment/code pairs must use // for comments.
+
+No multiline comment delimiters allowed here.
+This way, gotohugo can easily detect the different section types and create the relevant output without ever having to go back to previous lines.
+Also, the author does not need to memorize any kind of special markup syntax, nor insert any additional keywords into the document.
+
+A line comment **must** be followed by code. Otherwise, use a multiline comment instead.
+
+### Add Hugo front matter right at the beginning.
+
+After an optional //go:... directive and the beginning of the first multiline comment delimiter, add the necessary Hugo front matter.
+
+Front matter **must** exist. Hugo cannot process a post properly without front matter. `gotohugo` fails processing the source file if it contains no front matter.
+Use the toml or yaml syntax, depending on the setting in the Hugo configuration.
+
+### Add a summary divider.
+
+The first part of the intro is a summary that Hugo can render on the list page. To mark the end of the summary, use the Hugo summary divider to manually define where the article gets split:
+
+`<!``--more-->`
+
+After that, continue with the intro.
+
+The summary divider must exist exactly once in this document.
+
+### Images are placed in a subfolder.
+
+By convention, images and animation files are placed in a subfolder that has the basename of the markdown file.
+
+For example, if the markdown file is named `gotohugo.md`, then the images and animations must be placed in the subfolder `gotohugo`. This subfolder is in the same folder as `gotohugo.go`.
+
+### Images and Hype animations MUST exist at the output dir, in the aforementioned subfolder.
+
+Reason is that `gotohugo` fetches an HTML snippet from the Hype HTML. If it cannot find the Hype HTML, it erros out.
+
+
+### Do not specify the path of an image or animation html.
+
+`gotohugo` automatically expands image and animation references as required.
+
+Example:
+
+`![image](image.png)` gets expanded to `![image](/post/gotohugo/image.png)`
+
+### Example of a gotohugo-friendly source code file.
+
+Examine `gotohugo.go`, which follows all the above rules and conventions.
+
+
 ## TODO
 
 [] Replace strings with []byte where this can help avoiding excessive copying & garbage creating.
@@ -68,7 +129,6 @@ const (
 	commentPtrn      = `^\s*//\s?`
 	commentStartPtrn = `^\s*/\*\s?`
 	commentEndPtrn   = `\s?\*/\s*$`
-	directivePtrn    = `^//go:`
 	frontmatterPtrn  = `^\s*(\+\+\+)|(---)\s*$`
 	imagePtrn        = `([^\x60]!\[[^\]]+\]\( *)([^\)]+\))` // \x60 = backtick
 	hypePtrn         = `[^\x60]HYPE\[[^\]]+\]\( *([^\)]+) *\)`
@@ -76,10 +136,9 @@ const (
 )
 
 var (
-	comment          = regexp.MustCompile(commentPtrn)      // pattern for single-line comments
+	commentRe        = regexp.MustCompile(commentPtrn)      // pattern for single-line comments
 	commentStart     = regexp.MustCompile(commentStartPtrn) // pattern for /* comment delimiter
 	commentEnd       = regexp.MustCompile(commentEndPtrn)   // pattern for */ comment delimiter
-	directive        = regexp.MustCompile(directivePtrn)    // pattern for //go: directive, like //go:generate
 	frontmatterDelim = regexp.MustCompile(frontmatterPtrn)  // pattern for Hugo front matter delimiters
 	imageTag         = regexp.MustCompile(imagePtrn)        // pattern for Markdown image tag
 	hypeTag          = regexp.MustCompile(hypePtrn)         // pattern for Hype animation tag
@@ -90,72 +149,47 @@ var (
 
 // ## First, some helper functions
 //
-// commentFinder returns a function that determines if the current line belongs to
-// a comment region.
-func commentFinder() func(string) bool {
-	commentSectionInProgress := false
-	return func(line string) bool {
-		if comment.FindString(line) != "" {
-			// "//" Comment line found.
-			return true
-		}
-		// If the current line is at the start `/*` of a multi-line comment,
-		// set a flag to remember we're within a multi-line comment.
-		if commentStart.FindString(line) != "" {
-			commentSectionInProgress = true
-			return true
-		}
-		// At the end `*/` of a multi-line comment, clear the flag.
-		if commentEnd.FindString(line) != "" {
-			commentSectionInProgress = false
-			return true
-		}
-		// The current line is within a `/*...*/` section.
-		if commentSectionInProgress {
-			return true
-		}
-		// Anything else is not a comment region.
-		return false
-	}
-}
-
-// isInComment returns true if the current line belongs to a comment region.
-// A comment region `//` is either a comment line (starting with `//`) or
-// a `/*...*/` multi-line comment.
-var isInComment func(string) bool = commentFinder()
-
-// isDirective returns true if the input argument is a Go directive,
-// like `//go:generate`.
-func isDirective(line string) bool {
-	if directive.FindString(line) != "" {
+// isLineComment returns true if the text in the input string starts with //.
+func isLineComment(line string) bool {
+	if commentRe.FindString(line) != "" {
+		// "//" Comment line found.
 		return true
 	}
 	return false
 }
 
-// frontmatterFinder returns a function that determines if the current line
-// belongs to Hugo front matter.
-func frontmatterFinder() func(string) bool {
-	frontmatterInProgress := false
-	return func(line string) bool {
-		if frontmatterDelim.FindString(line) != "" {
-			// Front matter delimiter found.
-			// The first one starts the front matter.
-			if frontmatterInProgress == false {
-				frontmatterInProgress = true
-				return true
-			} else {
-				frontmatterInProgress = false
-				return true
-			}
-		}
-		return frontmatterInProgress
+// isCommentStart detects the start of a multiline comment.
+func isCommentStart(line string) bool {
+	if commentStart.FindString(line) != "" {
+		return true
 	}
+	return false
 }
 
-// isInFrontmatter returns true if the current line belongs to
-// Hugo front matter.
-var isInFrontmatter func(string) bool = frontmatterFinder()
+// isCommentEnd detects the end of a multiline comment.
+func isCommentEnd(line string) bool {
+	if commentEnd.FindString(line) != "" {
+		return true
+	}
+	return false
+}
+
+// isFrontmatterDelim receives an integer and increases it by one
+// if it finds a frontmatter deliminter in the current line.
+func isFrontmatterDelim(line string) bool {
+	if frontmatterDelim.FindString(line) != "" {
+		return true
+	}
+	return false
+}
+
+// isSummaryDivider detects the summary divider.
+func isSummaryDivider(line string) bool {
+	if strings.Index(line, "<!--more-->") > -1 {
+		return true
+	}
+	return false
+}
 
 // extendPath takes a string that should contain a filename
 // and prepends `/post/<basename>/` to it.
@@ -234,114 +268,183 @@ func getHTMLSnippet(path, basename string) (out string) {
 //
 // HYPE[description](animation.html)
 //
-// It returns the (possibly modified) line and the path to the hyperesources directory.
-func replaceHypeTag(line, base string) (out string, path string, err error) {
+// It returns the (possibly modified) line.
+func replaceHypeTag(line, base string) (out string, err error) {
 	matches := hypeTag.FindStringSubmatch(line)
 	if len(matches) == 0 {
-		return line, "", nil
+		return line, nil
 	}
 	if len(matches) == 1 {
-		return "", "", errors.New("Error: Found Hype tag but no valid path, in line:\n" + line)
+		return "", errors.New("Error: Found Hype tag but no valid path, in line:\n" + line)
 	}
-	path = matches[1]
+	path := matches[1]
 	out = getHTMLSnippet(filepath.Join(*outDir, base, path), base)
 	out += "<noscript class=\"nohype\"><em>Please enable JavaScript to view the animation.</em></noscript>\n"
-	path = strings.Replace(path, ".html", ".hyperesources", -1)
-	return out, path, err
+	return out, err
 }
 
-// shortcode returns a Hugo shortcode of the form
-// &#123;{% gotohugo <name> %}}.
-func shortcode(name string) string {
-	return "{" + "{% gotohugo " + name + " %}}\n"
+// div returns a Hugo shortcode of the form
+// &#123;{% div <name> %}}.
+func div(name string) string {
+	return "{" + "{% div " + name + " %}}\n"
 }
 
-// shortcodeEnd returns the end marker of a shortcode.
-func shortcodeEnd() string {
-	return "{" + "{% /gotohugo %}}\n"
+// divEnd returns the end marker of a div.
+func divEnd() string {
+	return "{" + "{% divend %}}\n"
 }
 
 // convert receives a string containing commented Go code and converts it
 // line by line into a Markdown document.
-func convert(in, base string) (out string, err error) {
+func convert(in, base string) (out string) {
 	const (
-		neither = iota
+		beforefrontmatter = iota
+		frontmatter
+		summary
+		intro
+		doc
 		comment
 		code
-		frontmatter
-		abstract
-		intro
+		none
 	)
-	lastLine := neither
+	status := beforefrontmatter
 
 	// Turn CR/LF line endings into pure LF line endings.
 	in = strings.Replace(in, "\r", "", -1)
 	// Split at newline and process each line.
 	for _, line := range strings.Split(in, "\n") {
-		// Skip the line if it is a Go directive like //go:generate
-		if isDirective(line) {
-			continue
-		}
-		// if the line belongs to Hugo front matter, append it to out
-		// and continue with the next line.
-		if isInFrontmatter(line) {
-			lastLine = frontmatter
-			out += line
-			continue
-		} else {
-			// After the front matter, start the intro section.
-			if lastLine == frontmatter {
-				out += shortcode("intro")
-				lastLine = intro
-			}
-		}
-		// Determine if the line belongs to a comment.
-		if isInComment(line) && lastLine != frontmatter {
-			// Close the code block if a new comment begins.
-			if lastLine == code {
-				out += "```\n\n"
-				out += shortcodeEnd()
-				out += shortcode("doc")
-			}
-			if lastLine == intro {
-				out += shortcodeEnd()
-				out += shortcode("doc")
-			}
-			// Start a comment block
-			lastLine = comment
+
+		// First we do some line processing that does **not** call
+		// `continue`.
+
+		// Images and Hype animations can be located in the intro,
+		// in comments, or in pure doc sections.
+		if status == doc || status == comment || status == intro {
 
 			// If the line contains an image tag, extend the path of the tag.
 			line = extendImagePath(line, base)
 
 			// If the line contains a Hype tag, replace it with the Hype HTML snippet.
-			repl, path, err := replaceHypeTag(line, base)
+			line, err := replaceHypeTag(line, base)
 			if err != nil {
-				return "", errors.Wrap(err, "Failed generating Hype tag from line "+line)
+				e := errors.Wrap(err, "Failed generating Hype tag from line "+line)
+				errors.Print(e)
+				out += e.Error()
 			}
-			if repl != "" && path != "" {
-				out += repl
+		}
+
+		// if the line belongs to Hugo front matter, append it to out
+		// and continue with the next line.
+		if status == beforefrontmatter {
+			if isFrontmatterDelim(line) { // start of front matter.
+				status = frontmatter
+				out += line + "\n"
+				continue
+			} else { // end of front matter. Summary section begins.
+				out += line + "\n"
+				status = summary
+				out += div("summary")
+				continue
+			}
+			// Discard anything before the front matter. There should **only**
+			// be an optional //go:... directive, and the start of the first
+			// multiline comment, and nothing else.
+			continue
+		}
+
+		// After the summary divider, start the intro.
+		if status == summary {
+			if isSummaryDivider(line) {
+				out += divEnd()
+				out += line + "\n"
+				out += div("intro")
+				status = intro
+				continue
+			}
+			out += line + "\n"
+			continue
+		}
+
+		if status == intro {
+			if isCommentEnd(line) {
+				out += divEnd()
+				status = none
+				continue
+			}
+			out += line + "\n"
+			continue
+		}
+
+		// A line comment can occur after code, after another line comment,
+		// or when no other section is active.
+		if status == none || status == code {
+			if isLineComment(line) {
+				if status == code {
+					out += divEnd()
+				}
+				status = comment
+				out += div("comment")
+				// Strip the comment delimiters.
+				out += commentRe.ReplaceAllString(line, "") + "\n"
+				continue
+			}
+		}
+
+		// While processing line comments.
+		if status == comment {
+			// If still looking at a line comment, strip the delims.
+			// Else switch into code status.
+			if isLineComment(line) {
+				out += commentRe.ReplaceAllString(line, "") + "\n"
+				continue
 			} else {
-				// Strip out any comment delimiter and add the line to the output.
-				out += allCommentDelims.ReplaceAllString(line, "") + "\n"
-			}
-		} else { // not in comment
-			// Open a new code block if the last line was a comment,
-			// but take care of empty lines between two comment lines.
-			if lastLine == comment && len(line) > 0 {
-				lastLine = code
-				out += shortcodeEnd()
-				out += shortcode("code")
+				status = code
+				out += line + "\n"
+				out += divEnd()
+				out += div("code")
 				out += "\n```go\n"
+				continue
 			}
-			// Add code lines verbatim to the output.
+		}
+
+		// While processing code, look out for comments.
+		if status == code {
+			if isLineComment(line) {
+				status = comment
+				out += "```\n\n"
+				out += divEnd()
+				out += div("comment")
+				out += commentRe.ReplaceAllString(line, "") + "\n"
+				continue
+			}
+			if isCommentStart(line) {
+				status = doc
+				out += "```\n\n"
+				out += divEnd()
+				out += div("doc")
+				out += commentStart.ReplaceAllString(line, "") + "\n"
+				continue
+			}
+			out += line + "\n"
+			continue
+
+		}
+
+		if status == doc {
+			if isCommentEnd(line) {
+				out += divEnd()
+				status = none
+				continue
+			}
+			out += line + "\n"
+			continue
+		}
+
+		if status == none {
 			out += line + "\n"
 		}
 	}
-	if lastLine == code {
-		out += "\n```\n"
-		out += shortcodeEnd()
-	}
-	return out, nil
+	return out
 }
 
 // ## Converting a file
@@ -368,10 +471,7 @@ func convertFile(filename string) (err error) {
 	ext := ".md"
 	basename := base(name) // strip ".go"
 	outname := filepath.Join(*outDir, basename) + ext
-	md, err := convert(string(src), basename)
-	if err != nil {
-		return errors.Wrap(err, "Error converting "+filename)
-	}
+	md := convert(string(src), basename)
 	err = ioutil.WriteFile(outname, []byte(md), 0644) // -rw-r--r--
 	if err != nil {
 		return errors.Wrap(err, "Cannot write file "+outname)
