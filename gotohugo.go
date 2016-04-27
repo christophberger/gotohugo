@@ -269,6 +269,8 @@ func convert(in, base string) (out string, err error) {
 		comment
 		code
 		frontmatter
+		abstract
+		intro
 	)
 	lastLine := neither
 
@@ -280,14 +282,17 @@ func convert(in, base string) (out string, err error) {
 		if isDirective(line) {
 			continue
 		}
-		// Determine if the line belongs to Hugo front matter.
+		// if the line belongs to Hugo front matter, append it to out
+		// and continue with the next line.
 		if isInFrontmatter(line) {
 			lastLine = frontmatter
+			out += line
+			continue
 		} else {
 			// After the front matter, start the intro section.
 			if lastLine == frontmatter {
 				out += shortcode("intro")
-				lastLine = comment
+				lastLine = intro
 			}
 		}
 		// Determine if the line belongs to a comment.
@@ -298,7 +303,11 @@ func convert(in, base string) (out string, err error) {
 				out += shortcodeEnd()
 				out += shortcode("doc")
 			}
-			// Start a comment block if the last line was neither doc nor code.
+			if lastLine == intro {
+				out += shortcodeEnd()
+				out += shortcode("doc")
+			}
+			// Start a comment block
 			lastLine = comment
 
 			// If the line contains an image tag, extend the path of the tag.
