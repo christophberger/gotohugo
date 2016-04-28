@@ -1,5 +1,8 @@
 //go:generate this-is-ignored
 /*   
+
+Everthing before the front matter is ignored.
+
 +++
 front = "matter"
 this = "must exist"
@@ -21,6 +24,7 @@ blablabla bla
 End of the intro section
 */
 
+// Code-comment pairs:
 // ## Imports and Globals
 package main
 
@@ -33,6 +37,11 @@ var (
 	a = 10
 	b = ""
 )
+
+// Another code-comment pair
+func bla() string {
+	return "bla"
+}
 
 /* 
 ### ABC
