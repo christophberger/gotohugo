@@ -126,23 +126,25 @@ import (
 )
 
 const (
+	preformatPtrn    = `\x60|^ {4,}|^\t\s*` // \x60 = backtick
 	commentPtrn      = `^\s*//\s?`
 	commentStartPtrn = `^\s*/\*\s?`
 	commentEndPtrn   = `\s?\*/\s*$`
 	frontmatterPtrn  = `^\s*(\+\+\+)|(---)\s*$`
-	imagePtrn        = `([^\x60]!\[[^\]]+\]\( *)([^\)]+\))` // \x60 = backtick
-	hypePtrn         = `[^\x60]HYPE\[[^\]]+\]\( *([^\)]+) *\)`
+	imagePtrn        = `(!\[[^\]]+\]\( *)([^"\)]*?)(.*?\))`
+	hypePtrn         = `HYPE\[[^\]]+\]\( *([^\)]+) *\)`
 	srcPtrn          = `(src=")(.*\.hyperesources/)`
 )
 
 var (
-	commentRe        = regexp.MustCompile(commentPtrn)      // pattern for single-line comments
-	commentStart     = regexp.MustCompile(commentStartPtrn) // pattern for /* comment delimiter
-	commentEnd       = regexp.MustCompile(commentEndPtrn)   // pattern for */ comment delimiter
-	frontmatterDelim = regexp.MustCompile(frontmatterPtrn)  // pattern for Hugo front matter delimiters
-	imageTag         = regexp.MustCompile(imagePtrn)        // pattern for Markdown image tag
-	hypeTag          = regexp.MustCompile(hypePtrn)         // pattern for Hype animation tag
-	srcTag           = regexp.MustCompile(srcPtrn)          // pattern for Hype container div src tag
+	preformat        = regexp.MustCompile(preformatPtrn)    // matches preformatted text
+	commentRe        = regexp.MustCompile(commentPtrn)      // matches single-line comments
+	commentStart     = regexp.MustCompile(commentStartPtrn) // matches /* comment delimiter
+	commentEnd       = regexp.MustCompile(commentEndPtrn)   // matches */ comment delimiter
+	frontmatterDelim = regexp.MustCompile(frontmatterPtrn)  // matches Hugo front matter delimiters
+	imageTag         = regexp.MustCompile(imagePtrn)        // matches Markdown image tag
+	hypeTag          = regexp.MustCompile(hypePtrn)         // matches Hype animation tag
+	srcTag           = regexp.MustCompile(srcPtrn)          // matches Hype container div src tag
 	allCommentDelims = regexp.MustCompile(commentPtrn + "|" + commentStartPtrn + "|" + commentEndPtrn)
 	outDir           = flag.String("out", "out", "Output directory")
 )
@@ -191,6 +193,10 @@ func isSummaryDivider(line string) bool {
 	return false
 }
 
+func isPreformatted(line string) bool {
+	return preformat.FindString(line) != ""
+}
+
 // extendPath takes a string that should contain a filename
 // and prepends `/post/<basename>/` to it.
 func extendPath(filename, basename string) string {
@@ -209,28 +215,32 @@ func extendSrc(src, basename string) string {
 // `/post/<basename>/` and returns the modified line.
 // Otherwise it returns the unmodified line.
 func extendImagePath(line, basename string) string {
-	return string(imageTag.ReplaceAll([]byte(line), []byte("$1"+extendPath("$2", basename))))
+	if isPreformatted(line) {
+		return line
+	}
+	return string(imageTag.ReplaceAll([]byte(line), []byte("$1"+extendPath("$2", basename)+"$3")))
 }
 
 /*
 imageTag should properly match the following image tags:
 
-`![Alt text](animation.gif)`
+`![Animation GIF](animation.gif)`
 
-![Alt text](animation.gif)
-(Same but with spaces around the path:) ![Alt text]( animation.gif )
+![Animation GIF]( animation.gif )
 
-`![Alt text](animation.gif "Title")` (With image title)
+(Same but with spaces around the path:) ![Animation GIF with spaces]( animation.gif )
 
-![Alt text](animation.gif "Title")
+`![Animation GIF with title](animation.gif "Title")` (With image title)
 
-`![Alt text](an image.png)` (With a space in the path)
+![Animation GIF with title](animation.gif "Title")
 
-![Alt text](an image.png)
+    ![Image with space in path](an image.png) (With a space in the path)
 
-`![Alt text](an image.png "Title")`  (With space and title)
+![Image with space in path](an image.png)
 
-![Alt text](an image.png "Title")
+	Same but with title: ![With space and title](an image.png "Title")
+
+![With space and title](an image.png "Title")
 */
 
 // getHTMLSnippet opens the file determined by `path`, and scans the file for the HTML
@@ -274,13 +284,19 @@ func getHTMLSnippet(path, basename string) (out string) {
 // * out: the (possibly modified) line
 // * found: true if a HYPE tag was found (and processed)
 func replaceHypeTag(line, base string) (out string, found bool, err error) {
+	// Do not process preformatted text
+	if isPreformatted(line) {
+		return line, false, nil
+	}
+	// Find the HYPE tag if it exists.
 	matches := hypeTag.FindStringSubmatch(line)
 	if len(matches) == 0 {
 		return line, false, nil
 	}
-	if len(matches) == 1 {
+	if len(matches) < 2 {
 		return "", false, errors.New("Error: Found Hype tag but no valid path, in line:\n" + line)
 	}
+	// substitute the Hype HTML snippet for the HYPE tag.
 	path := matches[1]
 	out = getHTMLSnippet(filepath.Join(*outDir, base, path), base)
 	out += "<noscript class=\"nohype\"><em>Please enable JavaScript to view the animation.</em></noscript>\n"
@@ -357,10 +373,12 @@ func convert(in, base string) (out string) {
 
 		// Within frontmatter, if the second delimiter is found,
 		// switch to summary section.
+		// Also generate a `gotohugo` namespace div.
 		if status == frontmatter {
 			out += line + "\n"
 			if isFrontmatterDelim(line) { // end of front matter. Summary section begins.
 				status = summary
+				out += div("gotohugo")
 				out += div("summary")
 				continue
 			}
@@ -379,6 +397,9 @@ func convert(in, base string) (out string) {
 			continue
 		}
 
+		// Intro is finished when the comment end delimiter occurs.
+		// The status afterwards is not defined. Comment/code pairs might follow,
+		// or another multiline comment. Or the end of the file.
 		if status == intro {
 			if isCommentEnd(line) {
 				out += divEnd()
@@ -393,9 +414,15 @@ func convert(in, base string) (out string) {
 		// or when no other section is active.
 		if status == none || status == code {
 			if isLineComment(line) {
+				// If the last line was code, add a closing code fence.
 				if status == code {
 					out += "```\n\n"
 					out += divEnd()
+				}
+				// Multiline comments switch the status to none at the end.
+				// In this case, start a new source section.
+				if status == none {
+					out += div("source")
 				}
 				status = comment
 				out += div("comment")
@@ -424,6 +451,8 @@ func convert(in, base string) (out string) {
 
 		// While processing code, look out for comments.
 		if status == code {
+
+			// A line comment occurs. End the code section.
 			if isLineComment(line) {
 				status = comment
 				out += "```\n\n"
@@ -432,10 +461,14 @@ func convert(in, base string) (out string) {
 				out += commentRe.ReplaceAllString(line, "") + "\n"
 				continue
 			}
+
+			// A multiline commment starts. End the code section and switch to
+			// single-column layout by closing the "source" div.
 			if isCommentStart(line) {
 				status = doc
 				out += "```\n\n"
-				out += divEnd()
+				out += divEnd() // for the code div
+				out += divEnd() // for the source div
 				out += div("doc")
 				out += commentStart.ReplaceAllString(line, "") + "\n"
 				continue
@@ -457,16 +490,23 @@ func convert(in, base string) (out string) {
 			continue
 		}
 
+		// Outside any status? Just pass the line to the output.
 		if status == none {
 			out += line + "\n"
 		}
 	}
 
 	// The last line in the file might be code.
-	// We need a closing code fence then.
+	// We need a closing code fence then, and we need to close
+	// the source div, too.
 	if status == code {
 		out += "\n```\n"
+		out += divEnd()
 	}
+
+	// Close the `gotohugo` namespace div.
+	out += divEnd()
+
 	return out
 }
 
