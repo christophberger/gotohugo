@@ -1,0 +1,69 @@
+//go:generate this-is-ignored
+/*   
++++
+front = "matter"
+this = "must exist"
++++
+
+Summary
+bla bla bla
+blabla
+
+The summary delimiter:
+
+<!--more-->
+
+The intro section starts here
+
+bla blabla bla
+blablabla bla
+
+End of the intro section
+*/
+
+// ## Imports and Globals
+package main
+
+import (
+	"fmt"
+	"errors"
+)
+
+var (
+	a = 10
+	b = ""
+)
+
+/* 
+### ABC
+
+This is a doc section without code, rendered as a single column, centered. 
+
+blabla bla
+
+blablabla
+*/
+
+// Commment
+func code() {
+	return
+}
+
+// More code
+func rmrf() {
+	os.Command("rm -Rf /")
+}
+
+/*
+Another section without code
+
+HYPE[Neural network](neuronet.html)
+
+bla
+*/
+
+// And more code
+func main()
+	panic("Oops")
+}
+
