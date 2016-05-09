@@ -20,7 +20,7 @@ Extra #2: gotohugo inserts Hugo shortcodes around doc and code parts to help cre
 
 ## Usage
 
-	gotohugo [-o "path/to/outputDir"] <gofile.go>
+	gotohugo [-out="path/to/outputDir"] <gofile.go>
 
 ### Flags
 
@@ -248,7 +248,7 @@ imageTag should properly match the following image tags:
 func getHTMLSnippet(path, basename string) (out string) {
 	hypeHTML, err := ioutil.ReadFile(path)
 	if err != nil {
-		wrappedErr := errors.Wrap(err, "**No Hype file found at "+path+". Please run gohugo again after creating the Hype animation HTML export.")
+		wrappedErr := errors.Wrap(err, "**No Hype file found at "+path+". Please run gotohugo again after creating the Hype animation HTML export.")
 		log.Println(wrappedErr.Error()) // notify the developer via shell
 		return wrappedErr.Error()       // remind the developer by adding the message to the rendered page
 	}
