@@ -2,11 +2,12 @@
 /*
 +++
 title = "gotohugo: Converting commented Go files to Markdown with custom Hugo shortcuts"
+description = "gotohugo is a converter from .go to .md with some Hugo-specific additions. Comments are converted to Markdown text, code is converted to Markdown code blocks. Additional Hugo shortcodes are inserted for better layout control."
 author = "Christoph Berger"
 date = "2016-04-25"
-categories = ["Blogging"]
-tags = ["Go", "Hugo", "Markdown", "Hype"]
-+++
+domain = ["Blogging"]
+categories = ["Tutorial"]
+tags = ["Hugo", "Markdown", "Hype"]+++
 
 
 `gotohugo` converts a .go file into a Markdown file. Comments can (and should) contain [Markdown](https://daringfireball.net/projects/markdown) text. Comment delimiters are stripped, and Go code is put into code fences. There are also two extra features included for free.
