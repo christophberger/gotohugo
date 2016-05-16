@@ -130,7 +130,7 @@ const (
 	preformatPtrn    = `\x60|^ {4,}|^\t\s*` // \x60 = backtick
 	commentPtrn      = `^\s*//\s?`
 	commentStartPtrn = `^\s*/\*\s?`
-	commentEndPtrn   = `\s?\*/\s*$`
+	commentEndPtrn   = `\s*\*/\s*$`
 	frontmatterPtrn  = `^\s*(\+\+\+)|(---)\s*$`
 	imagePtrn        = `(!\[[^\]]+\]\( *)([^"\)]*?)(.*?\))`
 	hypePtrn         = `HYPE\[[^\]]+\]\( *([^\)]+) *\)`
