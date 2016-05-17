@@ -7,7 +7,8 @@ author = "Christoph Berger"
 date = "2016-04-25"
 domain = ["Blogging"]
 categories = ["Tutorial"]
-tags = ["Hugo", "Markdown", "Hype"]+++
+tags = ["Hugo", "Markdown", "Hype"]
++++
 
 
 `gotohugo` converts a .go file into a Markdown file. Comments can (and should) contain [Markdown](https://daringfireball.net/projects/markdown) text. Comment delimiters are stripped, and Go code is put into code fences. There are also two extra features included for free.
@@ -22,6 +23,12 @@ Extra #2: gotohugo inserts Hugo shortcodes around doc and code parts to help cre
 ## Usage
 
 	gotohugo [-out="path/to/outputDir"] <gofile.go>
+	gotohugo [-hugo="path/to/hugoRootDir"] <gofile.go>
+
+If either `-hugo` is used, or if `$HUGODIR` is set, `-out` has no effect.
+If neither of the flags nor `$HUGODIR` are set, output defaults to `./out/`.
+When using `-hugo`, the output directory must point to the Hugo root directory. The markdown file will then be written to `<hugoRootDir>/post/<gofile.md>`, and all media files (images, Hype animations) will be written to `<hugoRootDir>/media/<gofile>/*`.
+
 
 ### Flags
 
@@ -119,6 +126,7 @@ import (
 	"flag"
 	"io/ioutil"
 	"log"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -147,7 +155,10 @@ var (
 	hypeTag          = regexp.MustCompile(hypePtrn)         // matches Hype animation tag
 	srcTag           = regexp.MustCompile(srcPtrn)          // matches Hype container div src tag
 	allCommentDelims = regexp.MustCompile(commentPtrn + "|" + commentStartPtrn + "|" + commentEndPtrn)
-	outDir           = flag.String("out", "out", "Output directory")
+	outDir           = flag.String("out", "out", "Output directory. Defaults to './out/'. If -hugo or $HUGODIR is set, -out has no effect.")
+	hugoDir          = flag.String("hugo", "", "Hugo root directory. Overrides -out and $HUGODIR.")
+	postDir          = "" // gets set to "post" if -hugo is used instead of -out
+	mediaDir         = "" // gets set to "media" if -hugo is used instead of -out
 )
 
 // ## First, some helper functions
@@ -298,7 +309,7 @@ func replaceHypeTag(line, base string) (out string, found bool, err error) {
 	}
 	// substitute the Hype HTML snippet for the HYPE tag.
 	path := matches[1]
-	out = getHTMLSnippet(filepath.Join(*outDir, base, path), base)
+	out = getHTMLSnippet(filepath.Join(*outDir, mediaDir, base, path), base)
 	out += "<noscript class=\"nohype\"><em>Please enable JavaScript to view the animation.</em></noscript>\n"
 	return out, true, err
 }
@@ -533,7 +544,7 @@ func base(name string) string {
 // ### Now the actual conversion
 //
 // `convertFile` takes a file name, reads that file, converts it to
-// Markdown, and writes it to `*outDir/<basename>.md`
+// Markdown, and writes it to `*outDir/[post/]<basename>.md`
 // The path must already exist.
 func convertFile(filename string) (err error) {
 	src, err := ioutil.ReadFile(filename)
@@ -543,7 +554,7 @@ func convertFile(filename string) (err error) {
 	name := filepath.Base(filename)
 	ext := ".md"
 	basename := base(name) // strip ".go"
-	outname := filepath.Join(*outDir, basename) + ext
+	outname := filepath.Join(*outDir, postDir, basename) + ext
 	md := convert(string(src), basename)
 	err = ioutil.WriteFile(outname, []byte(md), 0644) // -rw-r--r--
 	if err != nil {
@@ -556,6 +567,19 @@ func convertFile(filename string) (err error) {
 
 func main() {
 	flag.Parse()
+	hugoDirEnv := os.Getenv("HUGODIR")
+
+	// If $HUGODIR is set and -hugo isn't, copy $HUGODIR into *hugoDir.
+	if len(*hugoDir) == 0 && len(hugoDirEnv) > 0 {
+		*hugoDir = hugoDirEnv
+	}
+
+	// If *hugoDir is set, use this instead of *outDir. Also set the subdirs accordingly.
+	if len(*hugoDir) > 0 {
+		*outDir = filepath.Join(*hugoDir, "content")
+		postDir = "post"
+		mediaDir = "media"
+	}
 	for _, filename := range flag.Args() {
 		log.Println("Converting", filename)
 		err := convertFile(filename)
