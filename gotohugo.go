@@ -210,13 +210,13 @@ func isPreformatted(line string) bool {
 }
 
 // extendPath takes a string that should contain a filename
-// and prepends `/post/<basename>/` to it.
+// and prepends `/media/<basename>/` to it.
 func extendPath(filename, basename string) string {
-	return filepath.Join("/post", basename, filename)
+	return string(os.PathSeparator) + filepath.Join(mediaDir, basename, filename)
 }
 
 // func extendSrc takes a string that should contain the line from the HTML snippet that
-// starts with `<div id="animation_hype_container"...` and prepends `/post/<basename>` to
+// starts with `<div id="animation_hype_container"...` and prepends `/media/<basename>` to
 // the src="..." string.
 func extendSrc(src, basename string) string {
 	return string(srcTag.ReplaceAll([]byte(src), []byte("$1"+extendPath("$2", basename))))
@@ -224,7 +224,7 @@ func extendSrc(src, basename string) string {
 
 // extendImagePath receives a line of text and searches for an image
 // tag. If it finds one, it extends the image path to include
-// `/post/<basename>/` and returns the modified line.
+// `/media/<basename>/` and returns the modified line.
 // Otherwise it returns the unmodified line.
 func extendImagePath(line, basename string) string {
 	if isPreformatted(line) {
