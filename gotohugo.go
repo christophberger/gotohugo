@@ -132,6 +132,8 @@ import (
 	"regexp"
 	"strings"
 
+	"gopkg.in/fsnotify.v1"
+
 	"github.com/pkg/errors"
 )
 
@@ -156,6 +158,7 @@ var (
 	hypeTag          = regexp.MustCompile(hypePtrn)         // matches Hype animation tag
 	srcTag           = regexp.MustCompile(srcPtrn)          // matches Hype container div src tag
 	allCommentDelims = regexp.MustCompile(commentPtrn + "|" + commentStartPtrn + "|" + commentEndPtrn)
+	watch            = flag.String("watch", "", "Watch dirs recursively. If <name>/<name>.go changes, convert the file to Hugo Markdown.")
 	outDir           = flag.String("out", "out", "Output directory. Defaults to './out/'. If -hugo or $HUGODIR is set, -out has no effect.")
 	hugoDir          = flag.String("hugo", "", "Hugo root directory. Overrides -out and $HUGODIR.")
 	postDir          = "" // gets set to "post" if -hugo is used instead of -out
@@ -564,8 +567,72 @@ func convertFile(filename string) (err error) {
 	return nil
 }
 
-// ## main - Where it all starts
+// `watchAndConvert` observes the fileystem under directory <dir>.
+// If a file named `<name>.go` in directory `<name>` has changed,
+// convert it to Hugo Markdown.
+func watchAndConvert(dirname string) error {
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer watcher.Close()
 
+	done := make(chan bool)
+	go func() {
+		for {
+			select {
+			case event := <-watcher.Events:
+				log.Println("event:", event)
+				if event.Op&fsnotify.Write == fsnotify.Write {
+					log.Println("modified file:", event.Name)
+				}
+			case err := <-watcher.Errors:
+				log.Println("error:", err)
+			}
+		}
+	}()
+
+	// Open the directory specified by -watch
+	dir, err := os.Open(dirname)
+	if err != nil {
+		return errors.Wrap(err, "Could not open "+dirname)
+	}
+	defer dir.Close()
+	err = dir.Chdir()
+	if err != nil {
+		return errors.Wrap(err, "Could not cd to "+dirname)
+	}
+
+	// Read all entries in this directory
+	entries, err := dir.Readdir(0)
+	if err != nil {
+		return errors.Wrap(err, "Cannot read directory "+dirname)
+	}
+
+	// If the entry is a directory, watch the Go file under that dir
+	// of the same name as the dir, e.g. `watch/watch.go`.
+	for _, fsobj := range entries {
+		if fsobj.IsDir() {
+			subdir, err := os.Open(fsobj.Name())
+			if err != nil {
+				return errors.Wrap(err, "Cannot open subdirectory "+fsobj.Name())
+			}
+			gofile, err := os.Open(filepath.Join(subdir.Name(), subdir.Name()+".go"))
+			if err != nil && !os.IsNotExist(err) {
+				return errors.Wrap(err, "Cannot read file "+gofile.Name())
+			} else if !os.IsNotExist(err) {
+				err = watcher.Add(gofile.Name()) // gofile.Name() contains the complete path passed to .Open()!
+				if err != nil {
+					return errors.Wrap(err, "Failed to add "+gofile.Name()+" to watcher")
+				}
+			}
+		}
+	}
+	<-done
+	return nil
+}
+
+// ## main - Where it all starts
 func main() {
 	flag.Parse()
 	hugoDirEnv := os.Getenv("HUGODIR")
@@ -581,11 +648,20 @@ func main() {
 		postDir = "post"
 		mediaDir = "media"
 	}
-	for _, filename := range flag.Args() {
-		log.Println("Converting", filename)
-		err := convertFile(filename)
+
+	// With `-watch=<dir>`, watch the subdirs of `<dir>` for changes.
+	if len(*watch) > 0 {
+		err := watchAndConvert(*watch)
 		if err != nil {
-			log.Fatal(errors.Wrap(err, "Conversion Error"))
+			log.Println(errors.Wrap(err, "Conversion Error"))
+		}
+	} else {
+		for _, filename := range flag.Args() {
+			log.Println("Converting", filename)
+			err := convertFile(filename)
+			if err != nil {
+				log.Fatal(errors.Wrap(err, "Conversion Error"))
+			}
 		}
 	}
 	log.Println("Done.")
