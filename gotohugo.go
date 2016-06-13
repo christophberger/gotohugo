@@ -124,6 +124,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -363,7 +364,7 @@ func convert(in, base string) (out string) {
 			line, found, err := replaceHypeTag(line, base)
 			if err != nil {
 				e := errors.Wrap(err, "Failed generating Hype tag from line "+line)
-				errors.Print(e)
+				fmt.Printf("%s\n", e)
 				out += e.Error()
 			}
 			if found {
