@@ -1,5 +1,8 @@
 //go:directive to be ignored by gotohugo
 /*
+
+Any text before the front matter is ignored.
+
 +++
 title = "gotohugo: Converting commented Go files to Markdown with custom Hugo shortcuts"
 description = "gotohugo is a converter from .go to .md with some Hugo-specific additions. Comments are converted to Markdown text, code is converted to Markdown code blocks. Additional Hugo shortcodes are inserted for better layout control."
@@ -15,7 +18,7 @@ tags = ["Hugo", "Markdown", "Hype"]
 
 <!--more-->
 
-Extra #1: A non-standard "HYPE" tag can be used for inserting Tumult Hype HTML animations. This tag resembles an image tag but with the "!" replaced by "HYPE", like: `HYPE[Description](path/to/exported_hype.html)`. It is replaced by the corresponding HTML snippet that loads the animation. To create the anmiation files, export your Tumult Hype animation to HTML5 and ensure the "Also save HTML file" checkbox is checked. `gotohugo` then extracts the required HTML snippet from the file and copies the `hyperesources` directory to the output folder.
+Extra #1: A non-standard "HYPE" tag can be used for inserting Tumult Hype HTML animations. This tag resembles an image tag but with the "!" replaced by "HYPE", like: `HYPE[Description](path/to/exported_hype.html)`. It is replaced by the corresponding HTML snippet that loads the animation. To create the animation files, export your Tumult Hype animation to HTML5 and ensure the "Also save HTML file" checkbox is checked. `gotohugo` then extracts the required HTML snippet from the file and copies the `hyperesources` directory to the output folder.
 
 Extra #2: gotohugo inserts Hugo shortcodes around doc and code parts to help creating a side-by-side layout à la docgo, where the code comments appear in an extra column left to the code. This very much adds to readability IMHO. This feature also comes with full Responsive Layout capability - if the viewport is too narrow, code and comment collapse into a single column.
 
@@ -24,28 +27,37 @@ Extra #2: gotohugo inserts Hugo shortcodes around doc and code parts to help cre
 
 	gotohugo [-out="path/to/outputDir"] <gofile.go>
 	gotohugo [-hugo="path/to/hugoRootDir"] <gofile.go>
-
-If either `-hugo` is used, or if `$HUGODIR` is set, `-out` has no effect.
-If neither of the flags nor `$HUGODIR` are set, output defaults to `./out/`.
-When using `-hugo`, the output directory must point to the Hugo root directory. The markdown file will then be written to `<hugoRootDir>/post/<gofile.md>`, and all media files (images, Hype animations) will be written to `<hugoRootDir>/media/<gofile>/*`.
-
+	gotohugo [-watch="dir/to/watch"] [-out="path/to/outputDir"]
+	gotohugo [-watch="dir/to/watch"] [-hugo="path/to/hugoRootDir"]
+	HUGODIR=/hugo/root/dir gotohugo <gofile.go>
 
 ### Flags
 
-*`-o`: Specifies the output directory. Defaults to `./out`. The path must already exist. By convention it is the path to Hugo's `content/post/` directory.
+*`-out`: Specifies the output directory. Defaults to `./out`. The path must already exist. By convention it is the path to Hugo's `content/post/` directory.
+*`-hugo`: Specifies the Hugo root dir. Mutual exclusive to `-out`. When using `-hugo`, the output directory must point to the Hugo root directory. The markdown file will then be written to `<hugoRootDir>/content/post/<gofile.md>`. Hype files must already exist at `<hugoRootDir>/content/media/<gofile>/<hypefile>.html`, or else gotohugo fails replacing the HYPE tag with the corresponding Hype HTML.
+*`-watch`: Watches the given directory. This must be the parent directory of one or more project directories. Gotohugo will only watch for changes to files whose names are the same as their directory, e.g., `gotohugo/gotohugo.go`. This is because each Hugo post is made from exactly one .go file, and this .go file must be named after its directory, to
+distinguish it from other .go files that might also reside in the same dir but are not part of the blog post.
+
+### Precedence rules for flags and environment variables
+
+* If either `-hugo` is used, or if `$HUGODIR` is set, `-out` has no effect.
+* If neither of the flags nor `$HUGODIR` are set, output defaults to `./out/`.
+
 
 ## Notes
 
 1. Unlike gotomarkdown, gotohugo does not handle any media files itself. All media files must be available at the output destination, in a subdirectory whose name is the base name of the go file.
-   Example: mytutorial.go gets turned into /post/mytutorial.md, and all meda files then must reside in /post/mytutorial/...
-   The point here is that right now, Hugo does not create subdirectories for posts; they all are created in `<hugo>/content/post`. To reduce clutter, all media files related to a post should therefore be put into a subdirectory of the post's base name.
+   Example: mytutorial.go gets turned into content/post/mytutorial.md, and all media files then must reside in content/media/mytutorial/.
+   The point here is that right now, Hugo does not create subdirectories for posts; they all are created in `<hugo>/content/post`. To reduce clutter, all media files related to a post should therefore be put into a subdirectory of the post's base name. Further, to avoid that Hugo grabs Hype HTML files and adds them to the list of posts, this subdirectory must reside outside the /post/ directory.
    As far as Hugo is concerned, this is just a convention; however, gotohugo relies on this file structure.
 
-2. To play nice with the Permalink feature of Hugo, gotohugo automatically creates the full path to the image file, starting from the content directory. That is, if your image resides in `content/post/mypost/myimage.jpg`, and your Markdown tag is like, `[My Image](myimage.jpg)`, gotohugo expands the tag to `[My Image](/post/mypost/myimage.jpg`.
+2. To play nice with the Permalink feature of Hugo, gotohugo automatically creates the full path to the image file, starting from the content directory. That is, if your image resides in `content/media/mypost/myimage.jpg`, and your Markdown tag is like, `[My Image](myimage.jpg)`, gotohugo expands the tag to `[My Image](/media/mypost/myimage.jpg`.
 
-3. Because of 1., gotohugo tries to find any Hype animation hmtl file in `outputDir/basename/hypename.html`. Gotohugo needs this file to extract the HTML snippet that replaces the HYPE tag. If gotohugo does not find the animation HTML that the HYPE tag points to, it subtitutes a warning message that will be visible on the rendered page.
+3. Because of 1., gotohugo tries to find any Hype animation hmtl file in `content/media/mypost/hypename.html`. Gotohugo needs this file to extract the HTML snippet that replaces the HYPE tag. If gotohugo does not find the animation HTML that the HYPE tag points to, it substitutes a warning message that will be visible on the rendered page.
+
 
 ## How to write proper gotohugo-friendly code documents
+
 
 ### Document sections and comment/code sections
 
@@ -53,9 +65,11 @@ Comments and code shall get rendered side-by-side if the screen width allows. Pu
 
 To distinguish between pure documentation and comment/code pairs without the need for extra markup, the following rules apply:
 
+
 ### Documents are `/``*` comment regions `*``/`.
 
 Any "pure" document section, especially the very first one, **must** be enclosed in multiline comment delimiters.
+
 
 ### Comment/code pairs must use // for comments.
 
@@ -65,12 +79,16 @@ Also, the author does not need to memorize any kind of special markup syntax, no
 
 A line comment **must** be followed by code. Otherwise, use a multiline comment instead.
 
+
 ### Add Hugo front matter right at the beginning.
 
 After an optional //go:... directive and the beginning of the first multiline comment delimiter, add the necessary Hugo front matter.
 
 Front matter **must** exist. Hugo cannot process a post properly without front matter. `gotohugo` fails processing the source file if it contains no front matter.
 Use the toml or yaml syntax, depending on the setting in the Hugo configuration.
+
+**Note:** Anything before the front matter is **not** turned into Markdown. Put things like License remarks and other internal notes there.
+
 
 ### Add a summary divider.
 
@@ -82,15 +100,17 @@ After that, continue with the intro.
 
 The summary divider must exist exactly once in this document.
 
+
 ### Images are placed in a subfolder.
 
-By convention, images and animation files are placed in a subfolder that has the basename of the markdown file.
+By convention, images and animation files are placed in a subfolder that has the base name of the markdown file.
 
 For example, if the markdown file is named `gotohugo.md`, then the images and animations must be placed in the subfolder `gotohugo`. This subfolder is in the same folder as `gotohugo.go`.
 
+
 ### Images and Hype animations MUST exist at the output dir, in the aforementioned subfolder.
 
-Reason is that `gotohugo` fetches an HTML snippet from the Hype HTML. If it cannot find the Hype HTML, it erros out.
+Reason is that `gotohugo` fetches an HTML snippet from the Hype HTML. If it cannot find the Hype HTML, it errors out.
 
 
 ### Do not specify the path of an image or animation html.
@@ -100,6 +120,7 @@ Reason is that `gotohugo` fetches an HTML snippet from the Hype HTML. If it cann
 Example:
 
 `![image](image.png)` gets expanded to `![image](/post/gotohugo/image.png)`
+
 
 ### Example of a gotohugo-friendly source code file.
 
@@ -131,6 +152,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"gopkg.in/fsnotify.v1"
 
@@ -291,7 +313,7 @@ func getHTMLSnippet(path, basename string) (out string) {
 }
 
 // replaceHypeTag identifies a tag like `HYPE[description](animation.html)`
-// and replaces it by the correspoding HTML snippet generated by [Tumult Hype](http://tumult.com)
+// and replaces it by the corresponding HTML snippet generated by [Tumult Hype](http://tumult.com)
 // through the "Export as HTML5 > Also save .html file" option.
 //
 //
@@ -390,7 +412,7 @@ func convert(in, base string) (out string) {
 			continue
 		}
 
-		// Within frontmatter, if the second delimiter is found,
+		// Within front matter, if the second delimiter is found,
 		// switch to summary section.
 		// Also generate a `gotohugo` namespace div.
 		if status == frontmatter {
@@ -486,7 +508,7 @@ func convert(in, base string) (out string) {
 				continue
 			}
 
-			// A multiline commment starts. End the code section and switch to
+			// A multiline comment starts. End the code section and switch to
 			// single-column layout by closing the "source" div.
 			if isCommentStart(line) {
 				status = doc
@@ -503,7 +525,7 @@ func convert(in, base string) (out string) {
 
 		}
 
-		// At the end of a multline comment, we don't know for sure
+		// At the end of a multiline comment, we don't know for sure
 		// what comes next, so we set the status to none.
 		if status == doc {
 			if isCommentEnd(line) {
@@ -567,7 +589,7 @@ func convertFile(filename string) (err error) {
 	return nil
 }
 
-// `watchAndConvert` observes the fileystem under directory <dir>.
+// `watchAndConvert` observes the file system under directory <dir>.
 // If a file named `<name>.go` in directory `<name>` has changed,
 // convert it to Hugo Markdown.
 func watchAndConvert(dirname string) error {
@@ -577,20 +599,8 @@ func watchAndConvert(dirname string) error {
 	}
 	defer watcher.Close()
 
-	done := make(chan bool)
-	go func() {
-		for {
-			select {
-			case event := <-watcher.Events:
-				log.Println("event:", event)
-				if event.Op&fsnotify.Write == fsnotify.Write {
-					log.Println("modified file:", event.Name)
-				}
-			case err := <-watcher.Errors:
-				log.Println("error:", err)
-			}
-		}
-	}()
+	// A list of paths that shall trigger conversion. The key has the form "watch/watch.go".
+	watched := map[string]bool{}
 
 	// Open the directory specified by -watch
 	dir, err := os.Open(dirname)
@@ -609,26 +619,51 @@ func watchAndConvert(dirname string) error {
 		return errors.Wrap(err, "Cannot read directory "+dirname)
 	}
 
-	// If the entry is a directory, watch the Go file under that dir
-	// of the same name as the dir, e.g. `watch/watch.go`.
+	// If the entry is a directory, watch for creation of or changes to a
+	// Go file under that dir of the same name as the dir, e.g. `watch/watch.go`.
 	for _, fsobj := range entries {
 		if fsobj.IsDir() {
-			subdir, err := os.Open(fsobj.Name())
+
+			// Watch the subdir for any changes.
+			err = watcher.Add(fsobj.Name())
 			if err != nil {
-				return errors.Wrap(err, "Cannot open subdirectory "+fsobj.Name())
+				return errors.Wrap(err, "Failed to add "+fsobj.Name()+" to watcher")
 			}
-			gofile, err := os.Open(filepath.Join(subdir.Name(), subdir.Name()+".go"))
-			if err != nil && !os.IsNotExist(err) {
-				return errors.Wrap(err, "Cannot read file "+gofile.Name())
-			} else if !os.IsNotExist(err) {
-				err = watcher.Add(gofile.Name()) // gofile.Name() contains the complete path passed to .Open()!
-				if err != nil {
-					return errors.Wrap(err, "Failed to add "+gofile.Name()+" to watcher")
-				}
-			}
+
+			// Save the path that shall trigger conversion.
+			watched[filepath.Join(fsobj.Name(), fsobj.Name()+".go")] = true
 		}
 	}
-	<-done
+
+	// Before triggering conversion, wait a second to avoid triggering multiple conversions
+	// from the same changes to the same file.
+	timer := time.NewTimer(time.Second)
+	timer.Stop()
+
+	queue := make(chan (string), 10)
+
+	for {
+		select {
+		case event := <-watcher.Events:
+			if *verbose {
+				log.Println("event:", event)
+			}
+			if event.Op&(fsnotify.Create|fsnotify.Write) != 0 { // Only watch for creating or writing the file
+				if watched[event.Name] {
+					timer.Reset(time.Second)
+					queue <- event.Name
+				}
+			}
+		case err := <-watcher.Errors:
+			return errors.Wrap(err, "Error while watching "+dirname)
+		case <-timer.C:
+			path := <-queue
+			log.Print("Converting " + path + "... ")
+			convertFile(path)
+			log.Println("Done.")
+		}
+	}
+
 	return nil
 }
 
