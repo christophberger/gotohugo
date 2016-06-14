@@ -27,9 +27,8 @@ Extra #2: gotohugo inserts Hugo shortcodes around doc and code parts to help cre
 
 	gotohugo [-out="path/to/outputDir"] <gofile.go>
 	gotohugo [-hugo="path/to/hugoRootDir"] <gofile.go>
-	gotohugo [-watch="dir/to/watch"] [-out="path/to/outputDir"]
-	gotohugo [-watch="dir/to/watch"] [-hugo="path/to/hugoRootDir"]
-	HUGODIR=/hugo/root/dir gotohugo <gofile.go>
+	gotohugo [-watch="dir/to/watch"] [-out="path/to/outputDir"] [-v]
+	gotohugo [-watch="dir/to/watch"] [-hugo="path/to/hugoRootDir"] [-v]
 
 ### Flags
 
@@ -37,6 +36,7 @@ Extra #2: gotohugo inserts Hugo shortcodes around doc and code parts to help cre
 *`-hugo`: Specifies the Hugo root dir. Mutual exclusive to `-out`. When using `-hugo`, the output directory must point to the Hugo root directory. The markdown file will then be written to `<hugoRootDir>/content/post/<gofile.md>`. Hype files must already exist at `<hugoRootDir>/content/media/<gofile>/<hypefile>.html`, or else gotohugo fails replacing the HYPE tag with the corresponding Hype HTML.
 *`-watch`: Watches the given directory. This must be the parent directory of one or more project directories. Gotohugo will only watch for changes to files whose names are the same as their directory, e.g., `gotohugo/gotohugo.go`. This is because each Hugo post is made from exactly one .go file, and this .go file must be named after its directory, to
 distinguish it from other .go files that might also reside in the same dir but are not part of the blog post.
+*`-v`: Verbose logging. Useful in `-watch` mode.
 
 ### Precedence rules for flags and environment variables
 
@@ -180,6 +180,7 @@ var (
 	hypeTag          = regexp.MustCompile(hypePtrn)         // matches Hype animation tag
 	srcTag           = regexp.MustCompile(srcPtrn)          // matches Hype container div src tag
 	allCommentDelims = regexp.MustCompile(commentPtrn + "|" + commentStartPtrn + "|" + commentEndPtrn)
+	verbose          = flag.Bool("v", false, "Enable verbose logging.")
 	watch            = flag.String("watch", "", "Watch dirs recursively. If <name>/<name>.go changes, convert the file to Hugo Markdown.")
 	outDir           = flag.String("out", "out", "Output directory. Defaults to './out/'. If -hugo or $HUGODIR is set, -out has no effect.")
 	hugoDir          = flag.String("hugo", "", "Hugo root directory. Overrides -out and $HUGODIR.")
@@ -631,7 +632,11 @@ func watchAndConvert(dirname string) error {
 			}
 
 			// Save the path that shall trigger conversion.
-			watched[filepath.Join(fsobj.Name(), fsobj.Name()+".go")] = true
+			fpath := filepath.Join(fsobj.Name(), fsobj.Name()+".go")
+			if *verbose {
+				log.Println("Watching " + fpath + ".")
+			}
+			watched[fpath] = true
 		}
 	}
 
@@ -686,6 +691,7 @@ func main() {
 
 	// With `-watch=<dir>`, watch the subdirs of `<dir>` for changes.
 	if len(*watch) > 0 {
+		log.Println("Running in watch mode. Hit Ctrl-C to stop.")
 		err := watchAndConvert(*watch)
 		if err != nil {
 			log.Println(errors.Wrap(err, "Conversion Error"))
