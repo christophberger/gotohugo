@@ -36,7 +36,7 @@ Extra #2: gotohugo inserts Hugo shortcodes around doc and code parts to help cre
 *`-hugo`: Specifies the Hugo root dir. Mutual exclusive to `-out`. When using `-hugo`, the output directory must point to the Hugo root directory. The markdown file will then be written to `<hugoRootDir>/content/post/<gofile.md>`. Hype files must already exist at `<hugoRootDir>/content/media/<gofile>/<hypefile>.html`, or else gotohugo fails replacing the HYPE tag with the corresponding Hype HTML.
 *`-watch`: Watches the given directory. This must be the parent directory of one or more project directories. Gotohugo will only watch for changes to files whose names are the same as their directory, e.g., `gotohugo/gotohugo.go`. This is because each Hugo post is made from exactly one .go file, and this .go file must be named after its directory, to
 distinguish it from other .go files that might also reside in the same dir but are not part of the blog post.
-*`-v`: Verbose logging. Useful in `-watch` mode.
+*`-d`: Debug-level logging.
 
 ### Precedence rules for flags and environment variables
 
@@ -180,7 +180,7 @@ var (
 	hypeTag          = regexp.MustCompile(hypePtrn)         // matches Hype animation tag
 	srcTag           = regexp.MustCompile(srcPtrn)          // matches Hype container div src tag
 	allCommentDelims = regexp.MustCompile(commentPtrn + "|" + commentStartPtrn + "|" + commentEndPtrn)
-	verbose          = flag.Bool("v", false, "Enable verbose logging.")
+	debug            = flag.Bool("d", false, "Enable debug-level logging.")
 	watch            = flag.String("watch", "", "Watch dirs recursively. If <name>/<name>.go changes, convert the file to Hugo Markdown.")
 	outDir           = flag.String("out", "out", "Output directory. Defaults to './out/'. If -hugo or $HUGODIR is set, -out has no effect.")
 	hugoDir          = flag.String("hugo", "", "Hugo root directory. Overrides -out and $HUGODIR.")
@@ -190,6 +190,13 @@ var (
 
 // ## First, some helper functions
 //
+// debug prints to the log output if the debug flag is set.
+func dbg(args ...interface{}) {
+	if *debug {
+		log.Println(args)
+	}
+}
+
 // isLineComment returns true if the text in the input string starts with //.
 func isLineComment(line string) bool {
 	if commentRe.FindString(line) != "" {
@@ -590,6 +597,29 @@ func convertFile(filename string) (err error) {
 	return nil
 }
 
+// sendPathFunc creates a function that sends the string `path`
+// to the channel `ch`.
+// The function is used to create a `time.AfterFunc` function (which takes no parameters).
+// Channel ch's receiving end is within the goroutine receivePathAndConvert.
+func sendPathFunc(ch chan<- string, path string) func() {
+	return func() {
+		ch <- path
+	}
+}
+
+// receivePathAndConvert receives a path to a .go file through the channel ch
+// and calls convertFile on this path.
+func receivePathAndConvert(ch <-chan string) {
+	for {
+		select {
+		case path := <-ch:
+			log.Println("Start converting   ", path+"...")
+			convertFile(path)
+			log.Println("Finished converting", path+".")
+		}
+	}
+}
+
 // `watchAndConvert` observes the file system under directory <dir>.
 // If a file named `<name>.go` in directory `<name>` has changed,
 // convert it to Hugo Markdown.
@@ -600,8 +630,14 @@ func watchAndConvert(dirname string) error {
 	}
 	defer watcher.Close()
 
+	// Start a goroutine that waits for paths sent through pathChan
+	// and runs convertFile on them.
+	pathChan := make(chan string)
+	go receivePathAndConvert(pathChan)
+
 	// A list of paths that shall trigger conversion. The key has the form "watch/watch.go".
-	watched := map[string]bool{}
+	// After timer C times out, the path is sent through channel ch to `receivePathAndConvert()`.
+	watchedPath := map[string]*time.Timer{}
 
 	// Open the directory specified by -watch
 	dir, err := os.Open(dirname)
@@ -631,41 +667,32 @@ func watchAndConvert(dirname string) error {
 				return errors.Wrap(err, "Failed to add "+fsobj.Name()+" to watcher")
 			}
 
-			// Save the path that shall trigger conversion.
+			// Remember the path that shall trigger conversion. As mentioned before,
+			// this is a path like `watch/watch.go`.
 			fpath := filepath.Join(fsobj.Name(), fsobj.Name()+".go")
-			if *verbose {
-				log.Println("Watching " + fpath + ".")
-			}
-			watched[fpath] = true
+			dbg("Watching " + fpath + ".")
+			watchedPath[fpath] = time.AfterFunc(time.Second, sendPathFunc(pathChan, fpath))
+			watchedPath[fpath].Stop()
 		}
 	}
 
-	// Before triggering conversion, wait a second to avoid triggering multiple conversions
-	// from the same changes to the same file.
-	timer := time.NewTimer(time.Second)
-	timer.Stop()
+	// Avoid that deadlock detection kicks in.
+	watchdog := time.NewTicker(10 * time.Second)
 
-	queue := make(chan (string), 10)
-
+	// Now look out for FS events.
 	for {
 		select {
 		case event := <-watcher.Events:
-			if *verbose {
-				log.Println("event:", event)
-			}
-			if event.Op&(fsnotify.Create|fsnotify.Write) != 0 { // Only watch for creating or writing the file
-				if watched[event.Name] {
-					timer.Reset(time.Second)
-					queue <- event.Name
+			dbg("event:", event)
+			if event.Op&(fsnotify.Create|fsnotify.Write) != 0 {
+				if watchedPath[event.Name] != nil {
+					watchedPath[event.Name].Reset(time.Second) // Start if stopped. Reset if running.
 				}
 			}
 		case err := <-watcher.Errors:
 			return errors.Wrap(err, "Error while watching "+dirname)
-		case <-timer.C:
-			path := <-queue
-			log.Print("Converting " + path + "... ")
-			convertFile(path)
-			log.Println("Done.")
+		case <-watchdog.C:
+			dbg("Watchdog triggered.")
 		}
 	}
 
