@@ -597,26 +597,16 @@ func convertFile(filename string) (err error) {
 	return nil
 }
 
-// sendPathFunc creates a function that sends the string `path`
-// to the channel `ch`.
+// newConvertFunc creates a function that converts the file described by `path`.
 // The function is used to create a `time.AfterFunc` function (which takes no parameters).
-// Channel ch's receiving end is within the goroutine receivePathAndConvert.
-func sendPathFunc(ch chan<- string, path string) func() {
+func newConvertFunc(path string) func() {
 	return func() {
-		ch <- path
-	}
-}
-
-// receivePathAndConvert receives a path to a .go file through the channel ch
-// and calls convertFile on this path.
-func receivePathAndConvert(ch <-chan string) {
-	for {
-		select {
-		case path := <-ch:
-			log.Println("Start converting   ", path+"...")
-			convertFile(path)
-			log.Println("Finished converting", path+".")
+		log.Println("Start converting   ", path+"...")
+		err := convertFile(path)
+		if err != nil {
+			log.Println(err)
 		}
+		log.Println("Finished converting", path+".")
 	}
 }
 
@@ -629,11 +619,6 @@ func watchAndConvert(dirname string) error {
 		log.Fatal(err)
 	}
 	defer watcher.Close()
-
-	// Start a goroutine that waits for paths sent through pathChan
-	// and runs convertFile on them.
-	pathChan := make(chan string)
-	go receivePathAndConvert(pathChan)
 
 	// A list of paths that shall trigger conversion. The key has the form "watch/watch.go".
 	// After timer C times out, the path is sent through channel ch to `receivePathAndConvert()`.
@@ -671,7 +656,7 @@ func watchAndConvert(dirname string) error {
 			// this is a path like `watch/watch.go`.
 			fpath := filepath.Join(fsobj.Name(), fsobj.Name()+".go")
 			dbg("Watching " + fpath + ".")
-			watchedPath[fpath] = time.AfterFunc(time.Second, sendPathFunc(pathChan, fpath))
+			watchedPath[fpath] = time.AfterFunc(time.Second, newConvertFunc(fpath))
 			watchedPath[fpath].Stop()
 		}
 	}
