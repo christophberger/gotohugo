@@ -179,7 +179,6 @@ var (
 	imageTag         = regexp.MustCompile(imagePtrn)        // matches Markdown image tag
 	hypeTag          = regexp.MustCompile(hypePtrn)         // matches Hype animation tag
 	srcTag           = regexp.MustCompile(srcPtrn)          // matches Hype container div src tag
-	allCommentDelims = regexp.MustCompile(commentPtrn + "|" + commentStartPtrn + "|" + commentEndPtrn)
 	debug            = flag.Bool("d", false, "Enable debug-level logging.")
 	watch            = flag.String("watch", "", "Watch dirs recursively. If <name>/<name>.go changes, convert the file to Hugo Markdown.")
 	outDir           = flag.String("out", "out", "Output directory. Defaults to './out/'. If -hugo or $HUGODIR is set, -out has no effect.")
@@ -199,44 +198,28 @@ func dbg(args ...interface{}) {
 
 // isLineComment returns true if the text in the input string starts with //.
 func isLineComment(line string) bool {
-	if commentRe.FindString(line) != "" {
-		// "//" Comment line found.
-		return true
-	}
-	return false
+	return commentRe.FindString(line) != ""
 }
 
 // isCommentStart detects the start of a multiline comment.
 func isCommentStart(line string) bool {
-	if commentStart.FindString(line) != "" {
-		return true
-	}
-	return false
+	return commentStart.FindString(line) != ""
 }
 
 // isCommentEnd detects the end of a multiline comment.
 func isCommentEnd(line string) bool {
-	if commentEnd.FindString(line) != "" {
-		return true
-	}
-	return false
+	return commentEnd.FindString(line) != ""
 }
 
 // isFrontmatterDelim receives an integer and increases it by one
 // if it finds a frontmatter deliminter in the current line.
 func isFrontmatterDelim(line string) bool {
-	if frontmatterDelim.FindString(line) != "" {
-		return true
-	}
-	return false
+	return frontmatterDelim.FindString(line) != ""
 }
 
 // isSummaryDivider detects the summary divider.
 func isSummaryDivider(line string) bool {
-	if strings.Index(line, "<!--more-->") > -1 {
-		return true
-	}
-	return false
+	return strings.Contains(line, "<!--more-->")
 }
 
 func isPreformatted(line string) bool {
@@ -303,12 +286,12 @@ func getHTMLSnippet(path, basename string) (out string) {
 	lines := strings.Replace(string(hypeHTML), "\r", "", -1)
 	// Split at newline and process each line.
 	for _, line := range strings.Split(lines, "\n") {
-		if strings.Index(line, "<!-- copy these lines to your document: -->") >= 0 {
+		if strings.Contains(line, "<!-- copy these lines to your document: -->") {
 			inSnippet = true
 			continue
 		}
-		if strings.Index(line, "<!-- end copy -->") >= 0 {
-			if inSnippet == true {
+		if strings.Contains(line, "<!-- end copy -->") {
+			if inSnippet {
 				break
 			}
 			inSnippet = false // there can be more than one "end copy" strings in the file
