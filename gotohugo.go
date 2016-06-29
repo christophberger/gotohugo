@@ -25,16 +25,16 @@ Extra #2: gotohugo inserts Hugo shortcodes around doc and code parts to help cre
 
 ## Usage
 
-	gotohugo [-out="path/to/outputDir"] <gofile.go>
-	gotohugo [-hugo="path/to/hugoRootDir"] <gofile.go>
-	gotohugo [-watch="dir/to/watch"] [-out="path/to/outputDir"] [-v]
-	gotohugo [-watch="dir/to/watch"] [-hugo="path/to/hugoRootDir"] [-v]
+	gotohugo [-out "path/to/outputDir"] <gofile.go>
+	gotohugo [-hugo "path/to/hugoRootDir"] <gofile.go>
+	gotohugo [-watch "dir/to/watch"] [-out "path/to/outputDir"] [-v]
+	gotohugo [-watch "dir/to/watch"] [-hugo "path/to/hugoRootDir"] [-v]
 
 ### Flags
 
 *`-out`: Specifies the output directory. Defaults to `./out`. The path must already exist. By convention it is the path to Hugo's `content/post/` directory.
 *`-hugo`: Specifies the Hugo root dir. Mutual exclusive to `-out`. When using `-hugo`, the output directory must point to the Hugo root directory. The markdown file will then be written to `<hugoRootDir>/content/post/<gofile.md>`. Hype files must already exist at `<hugoRootDir>/content/media/<gofile>/<hypefile>.html`, or else gotohugo fails replacing the HYPE tag with the corresponding Hype HTML.
-*`-watch`: Watches the given directory. This must be the parent directory of one or more project directories. Gotohugo will only watch for changes to files whose names are the same as their directory, e.g., `gotohugo/gotohugo.go`. This is because each Hugo post is made from exactly one .go file, and this .go file must be named after its directory, to
+*`-watch`: Watches the given directory. (Default: Current dir.) This must be the parent directory of one or more project directories. Gotohugo will only watch for changes to files whose names are the same as their directory, e.g., `gotohugo/gotohugo.go`. This is because each Hugo post is made from exactly one .go file, and this .go file must be named after its directory, to
 distinguish it from other .go files that might also reside in the same dir but are not part of the blog post.
 *`-d`: Debug-level logging.
 
@@ -599,7 +599,7 @@ func newConvertFunc(path string) func() {
 func watchAndConvert(dirname string) error {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
-		log.Fatal(err)
+		return errors.Wrap(err, "Cannot create new Watcher")
 	}
 	defer watcher.Close()
 
@@ -626,23 +626,27 @@ func watchAndConvert(dirname string) error {
 
 	// If the entry is a directory, watch for creation of or changes to a
 	// Go file under that dir of the same name as the dir, e.g. `watch/watch.go`.
+	msg := ("Watching: ")
 	for _, fsobj := range entries {
 		if fsobj.IsDir() {
+			fname := fsobj.Name()
 
 			// Watch the subdir for any changes.
-			err = watcher.Add(fsobj.Name())
+			err = watcher.Add(fname)
 			if err != nil {
-				return errors.Wrap(err, "Failed to add "+fsobj.Name()+" to watcher")
+				return errors.Wrap(err, "Failed to add "+fname+" to watcher")
 			}
+			msg += fname + " "
 
 			// Remember the path that shall trigger conversion. As mentioned before,
 			// this is a path like `watch/watch.go`.
-			fpath := filepath.Join(fsobj.Name(), fsobj.Name()+".go")
+			fpath := filepath.Join(fname, fname+".go")
 			dbg("Watching " + fpath + ".")
 			watchedPath[fpath] = time.AfterFunc(time.Second, newConvertFunc(fpath))
 			watchedPath[fpath].Stop()
 		}
 	}
+	log.Println(msg)
 
 	// Avoid that deadlock detection kicks in.
 	watchdog := time.NewTicker(10 * time.Second)
