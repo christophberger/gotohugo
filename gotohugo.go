@@ -185,6 +185,7 @@ var (
 	hugoDir          = flag.String("hugo", "", "Hugo root directory. Overrides -out and $HUGODIR.")
 	postDir          = "" // gets set to "/content/post" if -hugo is used instead of -out
 	mediaDir         = "" // gets set to "/static/media" if -hugo is used instead of -out
+	publicMediaDir   = "" // the media dir as the Web server sees it. Gets set to "/media" if -hugo is used.
 )
 
 // ## First, some helper functions
@@ -229,7 +230,7 @@ func isPreformatted(line string) bool {
 // extendPath takes a string that should contain a filename
 // and prepends `/media/<basename>/` to it.
 func extendPath(filename, basename string) string {
-	return string(os.PathSeparator) + filepath.Join(mediaDir, basename, filename)
+	return string(os.PathSeparator) + filepath.Join(publicMediaDir, basename, filename)
 }
 
 // func extendSrc takes a string that should contain the line from the HTML snippet that
@@ -326,7 +327,7 @@ func replaceHypeTag(line, base string) (out string, found bool, err error) {
 	}
 	// substitute the Hype HTML snippet for the HYPE tag.
 	path := matches[1]
-	out = getHTMLSnippet(filepath.Join(mediaDir, base, path), base)
+	out = getHTMLSnippet(filepath.Join(*outDir, mediaDir, base, path), base)
 	out += "<noscript class=\"nohype\"><em>Please enable JavaScript to view the animation.</em></noscript>\n"
 	return out, true, err
 }
@@ -571,7 +572,7 @@ func convertFile(filename string) (err error) {
 	name := filepath.Base(filename)
 	ext := ".md"
 	basename := base(name) // strip ".go"
-	outname := filepath.Join(postDir, basename) + ext
+	outname := filepath.Join(*outDir, postDir, basename) + ext
 	md := convert(string(src), basename)
 	err = ioutil.WriteFile(outname, []byte(md), 0644) // -rw-r--r--
 	if err != nil {
@@ -684,8 +685,9 @@ func main() {
 	// If *hugoDir is set, use this instead of *outDir. Also set the subdirs accordingly.
 	if len(*hugoDir) > 0 {
 		*outDir = *hugoDir
-		postDir = filepath.Join(*outDir, "content", "post")
-		mediaDir = filepath.Join(*outDir, "static", "media")
+		postDir = filepath.Join("content", "post")
+		mediaDir = filepath.Join("static", "media") // media dir as Hugo sees it
+		publicMediaDir = "media"                    // media dir as the Web server sees it
 	}
 
 	// With `-watch=<dir>`, watch the subdirs of `<dir>` for changes.
