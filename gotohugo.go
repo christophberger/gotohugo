@@ -33,7 +33,7 @@ Extra #2: gotohugo inserts Hugo shortcodes around doc and code parts to help cre
 ### Flags
 
 *`-out`: Specifies the output directory. Defaults to `./out`. The path must already exist. By convention it is the path to Hugo's `content/post/` directory.
-*`-hugo`: Specifies the Hugo root dir. Mutual exclusive to `-out`. When using `-hugo`, the output directory must point to the Hugo root directory. The markdown file will then be written to `<hugoRootDir>/content/post/<gofile.md>`. Hype files must already exist at `<hugoRootDir>/content/media/<gofile>/<hypefile>.html`, or else gotohugo fails replacing the HYPE tag with the corresponding Hype HTML.
+*`-hugo`: Specifies the Hugo root dir. Mutual exclusive to `-out`. When using `-hugo`, the output directory must point to the Hugo root directory. The markdown file will then be written to `<hugoRootDir>/content/post/<gofile.md>`. Hype files must already exist at `<hugoRootDir>/static/media/<gofile>/<hypefile>.html`, or else gotohugo fails replacing the HYPE tag with the corresponding Hype HTML.
 *`-watch`: Watches the given directory. (Default: Current dir.) This must be the parent directory of one or more project directories. Gotohugo will only watch for changes to files whose names are the same as their directory, e.g., `gotohugo/gotohugo.go`. This is because each Hugo post is made from exactly one .go file, and this .go file must be named after its directory, to
 distinguish it from other .go files that might also reside in the same dir but are not part of the blog post.
 *`-d`: Debug-level logging.
@@ -47,13 +47,13 @@ distinguish it from other .go files that might also reside in the same dir but a
 ## Notes
 
 1. Unlike gotomarkdown, gotohugo does not handle any media files itself. All media files must be available at the output destination, in a subdirectory whose name is the base name of the go file.
-   Example: mytutorial.go gets turned into content/post/mytutorial.md, and all media files then must reside in content/media/mytutorial/.
+   Example: mytutorial.go gets turned into content/post/mytutorial.md, and all media files then must reside in static/media/mytutorial/.
    The point here is that right now, Hugo does not create subdirectories for posts; they all are created in `<hugo>/content/post`. To reduce clutter, all media files related to a post should therefore be put into a subdirectory of the post's base name. Further, to avoid that Hugo grabs Hype HTML files and adds them to the list of posts, this subdirectory must reside outside the /post/ directory.
    As far as Hugo is concerned, this is just a convention; however, gotohugo relies on this file structure.
 
-2. To play nice with the Permalink feature of Hugo, gotohugo automatically creates the full path to the image file, starting from the content directory. That is, if your image resides in `content/media/mypost/myimage.jpg`, and your Markdown tag is like, `[My Image](myimage.jpg)`, gotohugo expands the tag to `[My Image](/media/mypost/myimage.jpg`.
+2. To play nice with the Permalink feature of Hugo, gotohugo automatically creates the full path to the image file, starting from the content directory. That is, if your image resides in `static/media/mypost/myimage.jpg`, and your Markdown tag is like, `[My Image](myimage.jpg)`, gotohugo expands the tag to `[My Image](/media/mypost/myimage.jpg`.
 
-3. Because of 1., gotohugo tries to find any Hype animation hmtl file in `content/media/mypost/hypename.html`. Gotohugo needs this file to extract the HTML snippet that replaces the HYPE tag. If gotohugo does not find the animation HTML that the HYPE tag points to, it substitutes a warning message that will be visible on the rendered page.
+3. Because of 1., gotohugo tries to find any Hype animation hmtl file in `static/media/mypost/hypename.html`. Gotohugo needs this file to extract the HTML snippet that replaces the HYPE tag. If gotohugo does not find the animation HTML that the HYPE tag points to, it substitutes a warning message that will be visible on the rendered page.
 
 
 ## How to write proper gotohugo-friendly code documents
@@ -183,8 +183,8 @@ var (
 	watch            = flag.String("watch", "", "Watch dirs recursively. If <name>/<name>.go changes, convert the file to Hugo Markdown.")
 	outDir           = flag.String("out", "out", "Output directory. Defaults to './out/'. If -hugo or $HUGODIR is set, -out has no effect.")
 	hugoDir          = flag.String("hugo", "", "Hugo root directory. Overrides -out and $HUGODIR.")
-	postDir          = "" // gets set to "post" if -hugo is used instead of -out
-	mediaDir         = "" // gets set to "media" if -hugo is used instead of -out
+	postDir          = "" // gets set to "/content/post" if -hugo is used instead of -out
+	mediaDir         = "" // gets set to "/static/media" if -hugo is used instead of -out
 )
 
 // ## First, some helper functions
@@ -683,9 +683,9 @@ func main() {
 
 	// If *hugoDir is set, use this instead of *outDir. Also set the subdirs accordingly.
 	if len(*hugoDir) > 0 {
-		*outDir = filepath.Join(*hugoDir, "content")
-		postDir = "post"
-		mediaDir = "media"
+		*outDir = *hugoDir
+		postDir = filepath.Join(*outDir, "content", "post")
+		mediaDir = filepath.Join(*outDir, "static", "media")
 	}
 
 	// With `-watch=<dir>`, watch the subdirs of `<dir>` for changes.
