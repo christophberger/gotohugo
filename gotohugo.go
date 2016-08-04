@@ -326,7 +326,7 @@ func replaceHypeTag(line, base string) (out string, found bool, err error) {
 	}
 	// substitute the Hype HTML snippet for the HYPE tag.
 	path := matches[1]
-	out = getHTMLSnippet(filepath.Join(*outDir, mediaDir, base, path), base)
+	out = getHTMLSnippet(filepath.Join(mediaDir, base, path), base)
 	out += "<noscript class=\"nohype\"><em>Please enable JavaScript to view the animation.</em></noscript>\n"
 	return out, true, err
 }
@@ -571,7 +571,7 @@ func convertFile(filename string) (err error) {
 	name := filepath.Base(filename)
 	ext := ".md"
 	basename := base(name) // strip ".go"
-	outname := filepath.Join(*outDir, postDir, basename) + ext
+	outname := filepath.Join(postDir, basename) + ext
 	md := convert(string(src), basename)
 	err = ioutil.WriteFile(outname, []byte(md), 0644) // -rw-r--r--
 	if err != nil {
