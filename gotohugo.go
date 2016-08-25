@@ -625,9 +625,16 @@ func watchAndConvert(dirname string) error {
 		return errors.Wrap(err, "Cannot read directory "+dirname)
 	}
 
+	// Watch the given directory.
+	err = watcher.Add(dirname)
+	if err != nil {
+		return errors.Wrap(err, "Failed to add "+dirname+" to watcher")
+	}
+
 	// If the entry is a directory, watch for creation of or changes to a
 	// Go file under that dir of the same name as the dir, e.g. `watch/watch.go`.
-	msg := ("Watching: ")
+	msg := ("Watching " + dirname + " and: ")
+
 	for _, fsobj := range entries {
 		if fsobj.IsDir() {
 			fname := fsobj.Name()
