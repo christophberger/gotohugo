@@ -157,6 +157,8 @@ import (
 	"gopkg.in/fsnotify.v1"
 
 	"github.com/pkg/errors"
+
+	"github.com/google/gops/agent"
 )
 
 const (
@@ -681,6 +683,12 @@ func watchAndConvert(dirname string) error {
 
 // ## main - Where it all starts
 func main() {
+
+	// Start the Gops agent.
+	if err := agent.Start(); err != nil {
+		log.Fatal(err)
+	}
+
 	flag.Parse()
 	hugoDirEnv := os.Getenv("HUGODIR")
 
