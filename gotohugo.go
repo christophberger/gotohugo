@@ -419,11 +419,14 @@ func convert(in, base string) (out string) {
 			}
 		}
 
-		// After the summary divider, start the intro.
+		// After the summary divider, -
+		// - insert the announcement shortcode
+		// - start the intro.
 		if status == summary {
 			if isSummaryDivider(line) {
 				out += divEnd("summary doc")
 				out += line + "\n"
+				out += "{" + "{< announcement >}}\n"
 				out += div("intro doc")
 				status = intro
 				continue
