@@ -22,6 +22,8 @@ Extra #1: A non-standard "HYPE" tag can be used for inserting Tumult Hype HTML a
 
 Extra #2: gotohugo inserts Hugo shortcodes around doc and code parts to help creating a side-by-side layout à la docgo, where the code comments appear in an extra column left to the code. This very much adds to readability IMHO. This feature also comes with full Responsive Layout capability - if the viewport is too narrow, code and comment collapse into a single column.
 
+Extra #3: `gotohugo` inserts the custom Hugo shortcode `{{% announcement % }}` after the `&lt;!--more-->` tag that separates the summary from the rest of the text. This can be used for inserting announcement panels into all blog posts. The shortcode needs an appropriate shortcode definition at Hugo's end.
+
 
 ## Usage
 
@@ -333,10 +335,6 @@ func replaceHypeTag(line, base string) (out string, found bool, err error) {
 	out += "<noscript class=\"nohype\"><em>Please enable JavaScript to view the animation.</em></noscript>\n"
 	return out, true, err
 }
-
-/*
-HYPE[description](animation.html)
-*/
 
 // div returns a Hugo shortcode of the form
 // &#123;{% div <name> %}}.
@@ -688,7 +686,7 @@ func watchAndConvert(dirname string) error {
 func main() {
 
 	// Start the Gops agent.
-	if err := agent.Start(); err != nil {
+	if err := agent.Listen(nil); err != nil {
 		log.Fatal(err)
 	}
 

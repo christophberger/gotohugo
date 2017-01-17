@@ -206,6 +206,13 @@ type RawSockaddrHCI struct {
 	Channel uint16
 }
 
+type RawSockaddrCAN struct {
+	Family    uint16
+	Pad_cgo_0 [2]byte
+	Ifindex   int32
+	Addr      [8]byte
+}
+
 type RawSockaddr struct {
 	Family uint16
 	Data   [14]int8
@@ -331,6 +338,7 @@ const (
 	SizeofSockaddrLinklayer = 0x14
 	SizeofSockaddrNetlink   = 0xc
 	SizeofSockaddrHCI       = 0x6
+	SizeofSockaddrCAN       = 0x10
 	SizeofLinger            = 0x8
 	SizeofIPMreq            = 0x8
 	SizeofIPMreqn           = 0xc
@@ -607,6 +615,10 @@ const (
 	POLLHUP   = 0x10
 	POLLNVAL  = 0x20
 )
+
+type Sigset_t struct {
+	X__val [16]uint64
+}
 
 type Termios struct {
 	Iflag  uint32
