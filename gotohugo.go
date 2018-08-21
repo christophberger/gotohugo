@@ -339,12 +339,12 @@ func replaceHypeTag(line, base string) (out string, found bool, err error) {
 // div returns a Hugo shortcode of the form
 // &#123;{% div <name> %}}.
 func div(name string) string {
-	return "{" + "{% div " + name + " %}}\n"
+	return "{{% div " + name + " %}}\n"
 }
 
 // divEnd returns the end marker of a div.
 func divEnd(name string) string {
-	return "{" + "{% divend %}} <!--" + name + "-->\n"
+	return "{{% divend %}} <!--" + name + "-->\n"
 }
 
 // convert receives a string containing commented Go code and converts it
@@ -419,12 +419,14 @@ func convert(in, base string) (out string) {
 
 		// After the summary divider, -
 		// - insert the announcement shortcode
+		// - insert author
 		// - start the intro.
 		if status == summary {
 			if isSummaryDivider(line) {
 				out += divEnd("summary doc")
 				out += line + "\n"
-				out += "{" + "{< announcement >}}\n"
+				out += "{{< announcement >}}\n"
+				out += "{{< author >}}\n"
 				out += div("intro doc")
 				status = intro
 				continue
