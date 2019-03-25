@@ -622,7 +622,7 @@ func watchAndConvert(dirname string) error {
 	// After timer C times out, the path is sent through channel ch to `receivePathAndConvert()`.
 	watchedPath := map[string]*time.Timer{}
 
-	entries, err := ioutil.Readdir(dirname)
+	entries, err := ioutil.ReadDir(dirname)
 	if err != nil {
 		return errors.Wrap(err, "Cannot read directory "+dirname)
 	}
