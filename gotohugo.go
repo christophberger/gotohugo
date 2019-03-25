@@ -197,7 +197,7 @@ var (
 // debug prints to the log output if the debug flag is set.
 func dbg(args ...interface{}) {
 	if *debug {
-		log.Println(args)
+		log.Println(args...)
 	}
 }
 
@@ -294,6 +294,15 @@ func getHTMLSnippet(path, basename string) (out string) {
 		if strings.Contains(line, "<!-- copy these lines to your document: -->") {
 			inSnippet = true
 			continue
+		}
+		// Modify the src URL for Hugo preprocessing: Have Hugo expand the src path
+		// into an absolute URL. Useful for serving the HTML files from a sub-path,
+		// e.g. baseURL = https://christophberger.github.io/appliedgo.
+		// GitHub Pages would serve relative paths from christophberger.github.io rather
+		// than from the appliedgo path.
+		if inSnippet && strings.Contains(line, "src=") {
+			r := regexp.MustCompile(`(src=")([^"]+)(")`)
+			line = r.ReplaceAllString(line, "$1{{ $2 | absURL }}$3")
 		}
 		if strings.Contains(line, "<!-- end copy -->") {
 			if inSnippet {
@@ -680,8 +689,6 @@ func watchAndConvert(dirname string) error {
 			dbg("Watchdog triggered.")
 		}
 	}
-
-	return nil
 }
 
 // ## main - Where it all starts
