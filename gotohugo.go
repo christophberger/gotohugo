@@ -622,19 +622,7 @@ func watchAndConvert(dirname string) error {
 	// After timer C times out, the path is sent through channel ch to `receivePathAndConvert()`.
 	watchedPath := map[string]*time.Timer{}
 
-	// Open the directory specified by -watch
-	dir, err := os.Open(dirname)
-	if err != nil {
-		return errors.Wrap(err, "Could not open "+dirname)
-	}
-	defer dir.Close()
-	err = dir.Chdir()
-	if err != nil {
-		return errors.Wrap(err, "Could not cd to "+dirname)
-	}
-
-	// Read all entries in this directory
-	entries, err := dir.Readdir(0)
+	entries, err := ioutil.Readdir(dirname)
 	if err != nil {
 		return errors.Wrap(err, "Cannot read directory "+dirname)
 	}
@@ -731,5 +719,6 @@ func main() {
 			}
 		}
 	}
+
 	log.Println("Done.")
 }
