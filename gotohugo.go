@@ -187,6 +187,7 @@ var (
 	watch            = flag.String("watch", "", "Watch dirs recursively. If <name>/<name>.go changes, convert the file to Hugo Markdown.")
 	outDir           = flag.String("out", "out", "Output directory. Defaults to './out/'. If -hugo or $HUGODIR is set, -out has no effect.")
 	hugoDir          = flag.String("hugo", "", "Hugo root directory. Overrides -out and $HUGODIR.")
+	recursive        = flag.String("recursive", "", "Convert recursively all abc/abc.go files")
 	postDir          = "" // gets set to "/content/post" if -hugo is used instead of -out
 	mediaDir         = "" // gets set to "/static/media" if -hugo is used instead of -out
 	publicMediaDir   = "" // the media dir as the Web server sees it. Gets set to "/media" if -hugo is used.
@@ -241,7 +242,7 @@ func extendPath(filename, basename string) string {
 // starts with `<div id="animation_hype_container"...` and prepends `/media/<basename>` to
 // the src="..." string.
 func extendSrc(src, basename string) string {
-	return string(srcTag.ReplaceAll([]byte(src), []byte("$1"+extendPath("$2", basename))))
+	return string(srcTag.ReplaceAllString(src, "$1"+extendPath("$2", basename)))
 }
 
 // extendImagePath receives a line of text and searches for an image
@@ -252,7 +253,7 @@ func extendImagePath(line, basename string) string {
 	if isPreformatted(line) {
 		return line
 	}
-	return string(imageTag.ReplaceAll([]byte(line), []byte("$1"+extendPath("$2", basename)+"$3")))
+	return string(imageTag.ReplaceAllString(line, "$1"+extendPath("$2", basename)+"$3"))
 }
 
 /*
@@ -294,15 +295,6 @@ func getHTMLSnippet(path, basename string) (out string) {
 		if strings.Contains(line, "<!-- copy these lines to your document: -->") {
 			inSnippet = true
 			continue
-		}
-		// Modify the src URL for Hugo preprocessing: Have Hugo expand the src path
-		// into an absolute URL. Useful for serving the HTML files from a sub-path,
-		// e.g. baseURL = https://christophberger.github.io/appliedgo.
-		// GitHub Pages would serve relative paths from christophberger.github.io rather
-		// than from the appliedgo path.
-		if inSnippet && strings.Contains(line, "src=") {
-			r := regexp.MustCompile(`(src=")([^"]+)(")`)
-			line = r.ReplaceAllString(line, "$1{{ $2 | absURL }}$3")
 		}
 		if strings.Contains(line, "<!-- end copy -->") {
 			if inSnippet {
@@ -679,6 +671,32 @@ func watchAndConvert(dirname string) error {
 	}
 }
 
+// convertAll converts all blog articles recursively
+// Input: directory to start. This directory should contain
+// blog directories containing go files that follow the pattern
+// `abc/abc.go`.
+func convertAll(dir string) error {
+	allEntries, err := ioutil.ReadDir(dir)
+	if err != nil {
+		return errors.Wrap(err, "Cannot read directory "+dir)
+	}
+	for _, entry := range allEntries {
+		if entry.IsDir() {
+			file := filepath.Join(entry.Name(), entry.Name()+".go")
+			if _, err := os.Stat(file); os.IsNotExist(err) {
+				dbg("Skipping non-existent file", file)
+				continue
+			}
+			log.Println("Converting", file)
+			err := convertFile(file)
+			if err != nil {
+				return errors.Wrap(err, "Cannot convert "+file)
+			}
+		}
+	}
+	return nil
+}
+
 // ## main - Where it all starts
 func main() {
 
@@ -717,6 +735,14 @@ func main() {
 			if err != nil {
 				log.Fatal(errors.Wrap(err, "Conversion Error"))
 			}
+		}
+	}
+
+	if len(*recursive) > 0 {
+		log.Println("Converting all articles in", *recursive)
+		err := convertAll(*recursive)
+		if err != nil {
+			log.Fatalln(errors.Wrap(err, "Recursive conversion error"))
 		}
 	}
 
