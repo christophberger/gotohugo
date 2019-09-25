@@ -345,7 +345,7 @@ func div(name string) string {
 
 // divEnd returns the end marker of a div.
 func divEnd(name string) string {
-	return "{{% divend %}} <!--" + name + "-->\n"
+	return "{{% divend %}}\n" // <!--" + name + "-->\n" <- TODO: this part makes Hugo (up to at least 0.58.2) eat large parts of the article
 }
 
 // convert receives a string containing commented Go code and converts it
