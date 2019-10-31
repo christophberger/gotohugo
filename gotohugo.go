@@ -701,7 +701,7 @@ func convertAll(dir string) error {
 func main() {
 
 	// Start the Gops agent.
-	if err := agent.Listen(nil); err != nil {
+	if err := agent.Listen(agent.Options{}); err != nil {
 		log.Fatal(err)
 	}
 
