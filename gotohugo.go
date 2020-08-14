@@ -156,7 +156,7 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/fsnotify.v1"
+	"github.com/fsnotify/fsnotify"
 
 	"github.com/pkg/errors"
 
