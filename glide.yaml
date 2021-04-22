@@ -1,7 +1,0 @@
-package: github.com/christophberger/gotohugo
-import:
-- package: github.com/pkg/errors
-- package: github.com/google/gops
-  version: v0.1.0
-  subpackages:
-  - agent
