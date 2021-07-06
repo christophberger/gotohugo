@@ -7,20 +7,26 @@ domain = ["Blogging"]
 categories = ["Tutorial"]
 tags = ["Hugo", "Markdown", "Hype"]
 +++
-{{% div gotohugo %}}
-{{% div summary doc %}}
+{{< div gotohugo >}}
+{{< div summary doc >}}
 
 
-`gotohugo` converts a .go file into a Markdown file. Comments can (and should) contain [Markdown](https://daringfireball.net/projects/markdown) text. Comment delimiters are stripped, and Go code is put into code fences. There are also two extra features included for free.
+`gotohugo` converts a .go or .go2 file into a Markdown file. Comments can (and should) contain [Markdown](https://daringfireball.net/projects/markdown) text. Comment delimiters are stripped, and Go code is put into code fences. There are also two extra features included for free.
 
-{{% divend %}} <!--summary doc-->
+If a .go2 file is present that matches the required naming scheme, `gotohugo` processes this `.go2` file and ignores a `.go` file of the same name. This allows working with the `go2go` tool until generics are part of mainstream Go releases.
+
+{{< divend >}} <!--summary doc-->
+
 <!--more-->
+
 {{< announcement >}}
-{{% div intro doc %}}
+{{< div intro doc >}}
 
 Extra #1: A non-standard "HYPE" tag can be used for inserting Tumult Hype HTML animations. This tag resembles an image tag but with the "!" replaced by "HYPE", like: `HYPE[Description](path/to/exported_hype.html)`. It is replaced by the corresponding HTML snippet that loads the animation. To create the animation files, export your Tumult Hype animation to HTML5 and ensure the "Also save HTML file" checkbox is checked. `gotohugo` then extracts the required HTML snippet from the file and copies the `hyperesources` directory to the output folder.
 
 Extra #2: gotohugo inserts Hugo shortcodes around doc and code parts to help creating a side-by-side layout à la docgo, where the code comments appear in an extra column left to the code. This very much adds to readability IMHO. This feature also comes with full Responsive Layout capability - if the viewport is too narrow, code and comment collapse into a single column.
+
+Extra #3: `gotohugo` inserts the custom Hugo shortcode `{{% announcement % }}` after the `&lt;!--more-->` tag that separates the summary from the rest of the text. This can be used for inserting announcement panels into all blog posts. The shortcode needs an appropriate shortcode definition at Hugo's end.
 
 
 ## Usage
@@ -137,14 +143,14 @@ Examine `gotohugo.go`, which follows all the above rules and conventions.
 (c) 2016 Christoph Berger. All Rights Reserved.
 This code is governed by a BSD 3-clause license that can be found in LICENSE.txt.
 
-{{% divend %}} <!--intro doc-->
+{{< divend >}} <!--intro doc-->
 
-{{% div source %}}
-{{% div ccpair %}}
-{{% div comment %}}
+{{< div source >}}
+{{< div ccpair >}}
+{{< div comment >}}
 ## Imports and Globals
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 
@@ -161,7 +167,7 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/fsnotify.v1"
+	"github.com/fsnotify/fsnotify"
 
 	"github.com/pkg/errors"
 
@@ -192,6 +198,7 @@ var (
 	watch            = flag.String("watch", "", "Watch dirs recursively. If <name>/<name>.go changes, convert the file to Hugo Markdown.")
 	outDir           = flag.String("out", "out", "Output directory. Defaults to './out/'. If -hugo or $HUGODIR is set, -out has no effect.")
 	hugoDir          = flag.String("hugo", "", "Hugo root directory. Overrides -out and $HUGODIR.")
+	recursive        = flag.String("recursive", "", "Convert recursively all abc/abc.go files")
 	postDir          = "" // gets set to "/content/post" if -hugo is used instead of -out
 	mediaDir         = "" // gets set to "/static/media" if -hugo is used instead of -out
 	publicMediaDir   = "" // the media dir as the Web server sees it. Gets set to "/media" if -hugo is used.
@@ -199,32 +206,32 @@ var (
 
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 ## First, some helper functions
 
 debug prints to the log output if the debug flag is set.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 func dbg(args ...interface{}) {
 	if *debug {
-		log.Println(args)
+		log.Println(args...)
 	}
 }
 
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 isLineComment returns true if the text in the input string starts with //.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 func isLineComment(line string) bool {
@@ -233,13 +240,13 @@ func isLineComment(line string) bool {
 
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 isCommentStart detects the start of a multiline comment.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 func isCommentStart(line string) bool {
@@ -248,13 +255,13 @@ func isCommentStart(line string) bool {
 
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 isCommentEnd detects the end of a multiline comment.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 func isCommentEnd(line string) bool {
@@ -263,14 +270,14 @@ func isCommentEnd(line string) bool {
 
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 isFrontmatterDelim receives an integer and increases it by one
 if it finds a frontmatter deliminter in the current line.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 func isFrontmatterDelim(line string) bool {
@@ -279,13 +286,13 @@ func isFrontmatterDelim(line string) bool {
 
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 isSummaryDivider detects the summary divider.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 func isSummaryDivider(line string) bool {
@@ -298,14 +305,14 @@ func isPreformatted(line string) bool {
 
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 extendPath takes a string that should contain a filename
 and prepends `/media/<basename>/` to it.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 func extendPath(filename, basename string) string {
@@ -314,108 +321,108 @@ func extendPath(filename, basename string) string {
 
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 func extendSrc takes a string that should contain the line from the HTML snippet that
 starts with `<div id="animation_hype_container"...` and prepends `/media/<basename>` to
 the src="..." string.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 func extendSrc(src, basename string) string {
-	return string(srcTag.ReplaceAll([]byte(src), []byte("$1"+extendPath("$2", basename))))
+	return string(srcTag.ReplaceAllString(src, "$1"+extendPath("$2", basename)))
 }
 
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 extendImagePath receives a line of text and searches for an image
 tag. If it finds one, it extends the image path to include
 `/media/<basename>/` and returns the modified line.
 Otherwise it returns the unmodified line.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 func extendImagePath(line, basename string) string {
 	if isPreformatted(line) {
 		return line
 	}
-	return string(imageTag.ReplaceAll([]byte(line), []byte("$1"+extendPath("$2", basename)+"$3")))
+	return string(imageTag.ReplaceAllString(line, "$1"+extendPath("$2", basename)+"$3"))
 }
 
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% divend %}} <!--source-->
-{{% div doc %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< divend >}} <!--source-->
+{{< div doc >}}
 
 imageTag should properly match the following image tags:
 
 `![Animation GIF](animation.gif)`
 
-![Animation GIF]( /gotohugo/animation.gif )
+![Animation GIF]( /media/gotohugo/animation.gif )
 
-(Same but with spaces around the path:) ![Animation GIF with spaces]( /gotohugo/animation.gif )
+(Same but with spaces around the path:) ![Animation GIF with spaces]( /media/gotohugo/animation.gif )
 
 `![Animation GIF with title](animation.gif "Title")` (With image title)
 
-![Animation GIF with title](/gotohugo/animation.gif "Title")
+![Animation GIF with title](/media/gotohugo/animation.gif "Title")
 
     ![Image with space in path](an image.png) (With a space in the path)
 
-![Image with space in path](/gotohugo/an image.png)
+![Image with space in path](/media/gotohugo/an image.png)
 
 	Same but with title: ![With space and title](an image.png "Title")
 
-![With space and title](/gotohugo/an image.png "Title")
-{{% divend %}} <!--doc-->
+![With space and title](/media/gotohugo/an image.png "Title")
+{{< divend >}} <!--doc-->
 
-{{% div source %}}
-{{% div ccpair %}}
-{{% div comment %}}
+{{< div source >}}
+{{< div ccpair >}}
+{{< div comment >}}
 getHTMLSnippet opens the file determined by `path`, and scans the file for the HTML
 snippet to insert. It returns the HTML snippet.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 func getHTMLSnippet(path, basename string) (out string) {
 	hypeHTML, err := ioutil.ReadFile(path)
 	if err != nil {
-		wrappedErr := errors.Wrap(err, "**No Hype file found at "+path+". Please run gotohugo again after creating the Hype animation HTML export.")
+		wrappedErr := fmt.Errorf("no Hype file found at  %s . Please run gotohugo again after creating the Hype animation HTML export.: %w", path, err)
 		log.Println(wrappedErr.Error()) // notify the developer via shell
 		return wrappedErr.Error()       // remind the developer by adding the message to the rendered page
 	}
 	inSnippet := false
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 Remove carriage returns.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
-	lines := strings.Replace(string(hypeHTML), "\r", "", -1)
+	lines := strings.ReplaceAll(string(hypeHTML), "\r", "")
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 Split at newline and process each line.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 	for _, line := range strings.Split(lines, "\n") {
@@ -430,7 +437,7 @@ Split at newline and process each line.
 			inSnippet = false // there can be more than one "end copy" strings in the file
 		}
 		if inSnippet {
-			out += extendSrc(strings.Trim(line, "	\t"), basename) + "\n"
+			out += extendSrc(strings.Trim(line, "\t"), basename) + "\n"
 		}
 	}
 	return out + "\n"
@@ -438,10 +445,10 @@ Split at newline and process each line.
 
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 replaceHypeTag identifies a tag like `HYPE[description](animation.html)`
 and replaces it by the corresponding HTML snippet generated by [Tumult Hype](http://tumult.com)
 through the "Export as HTML5 > Also save .html file" option.
@@ -450,20 +457,20 @@ through the "Export as HTML5 > Also save .html file" option.
 It returns:
 * out: the (possibly modified) line
 * found: true if a HYPE tag was found (and processed)
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 func replaceHypeTag(line, base string) (out string, found bool, err error) {
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 Do not process preformatted text
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 	if isPreformatted(line) {
@@ -471,13 +478,13 @@ Do not process preformatted text
 	}
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 Find the HYPE tag if it exists.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 	matches := hypeTag.FindStringSubmatch(line)
@@ -485,17 +492,17 @@ Find the HYPE tag if it exists.
 		return line, false, nil
 	}
 	if len(matches) < 2 {
-		return "", false, errors.New("Error: Found Hype tag but no valid path, in line:\n" + line)
+		return "", false, errors.New("found Hype tag but no valid path, in line:\n" + line)
 	}
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 substitute the Hype HTML snippet for the HYPE tag.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 	path := matches[1]
@@ -506,45 +513,45 @@ substitute the Hype HTML snippet for the HYPE tag.
 
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 div returns a Hugo shortcode of the form
 &#123;{% div <name> %}}.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 func div(name string) string {
-	return "{" + "{% div " + name + " %}}\n"
+	return "{{< div " + name + " >}}\n"
 }
 
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 divEnd returns the end marker of a div.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 func divEnd(name string) string {
-	return "{" + "{% divend %}} <!--" + name + "-->\n"
+	return "{{< divend >}} <!--" + name + "-->\n"
 }
 
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 convert receives a string containing commented Go code and converts it
 line by line into a Markdown document.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 func convert(in, base string) (out string) {
@@ -562,83 +569,83 @@ func convert(in, base string) (out string) {
 
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 Turn CR/LF line endings into pure LF line endings.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 	in = strings.Replace(in, "\r", "", -1)
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 Split at newline and process each line.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 	for _, line := range strings.Split(in, "\n") {
 
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 First we do some line processing that does **not** necessarily call
 `continue`.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 Images and Hype animations can be located in the intro,
 in comments, or in pure doc sections.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 		if status == doc || status == comment || status == intro {
 
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 If the line contains an image tag, extend the path of the tag.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 			line = extendImagePath(line, base)
 
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 If the line contains a Hype tag, replace it with the Hype HTML snippet.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 			line, found, err := replaceHypeTag(line, base)
 			if err != nil {
-				e := errors.Wrap(err, "Failed generating Hype tag from line "+line)
+				e := fmt.Errorf("failed generating Hype tag from line  %s: %w", line, err)
 				fmt.Printf("%s\n", e)
 				out += e.Error()
 			}
@@ -650,14 +657,14 @@ If the line contains a Hype tag, replace it with the Hype HTML snippet.
 
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 if the line belongs to Hugo front matter, append it to out
 and continue with the next line.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 		if status == beforefrontmatter {
@@ -668,15 +675,15 @@ and continue with the next line.
 			}
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 Discard anything before the front matter. There should **only**
 be an optional //go:... directive, and the start of the first
 multiline comment, and nothing else.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 			continue
@@ -684,15 +691,15 @@ multiline comment, and nothing else.
 
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 Within front matter, if the second delimiter is found,
 switch to summary section.
 Also generate a `gotohugo` namespace div.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 		if status == frontmatter {
@@ -707,22 +714,34 @@ Also generate a `gotohugo` namespace div.
 
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 After the summary divider, -
 - insert the announcement shortcode
+- insert author
 - start the intro.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 		if status == summary {
 			if isSummaryDivider(line) {
 				out += divEnd("summary doc")
-				out += line + "\n"
-				out += "{" + "{< announcement >}}\n"
+				out += "\n" + line + "\n\n"
+				out += "{{< announcement >}}\n"
+```
+
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
+out += "{{< author >}}\n"
+{{< divend >}} <!--comment-->
+{{< div code >}}
+
+```go
 				out += div("intro doc")
 				status = intro
 				continue
@@ -733,15 +752,15 @@ After the summary divider, -
 
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 Intro is finished when the comment end delimiter occurs.
 The status afterwards is not defined. Comment/code pairs might follow,
 or another multiline comment. Or the end of the file.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 		if status == intro {
@@ -756,27 +775,27 @@ or another multiline comment. Or the end of the file.
 
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 A line comment can occur after code, after another line comment,
 or when no other section is active.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 		if status == none || status == code {
 			if isLineComment(line) {
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 If the last line was code, add a closing code fence.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 				if status == code {
@@ -787,14 +806,14 @@ If the last line was code, add a closing code fence.
 				}
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 Multiline comments switch the status to none at the end.
 In this case, start a new source section.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 				if status == none {
@@ -805,13 +824,13 @@ In this case, start a new source section.
 				out += div("comment")
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 Strip the comment delimiters.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 				out += commentRe.ReplaceAllString(line, "") + "\n"
@@ -821,26 +840,26 @@ Strip the comment delimiters.
 
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 While processing line comments.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 		if status == comment {
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 If still looking at a line comment, strip the delims.
 Else switch into code status.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 			if isLineComment(line) {
@@ -858,26 +877,26 @@ Else switch into code status.
 
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 While processing code, look out for comments.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 		if status == code {
 
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 A line comment occurs. End the code section.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 			if isLineComment(line) {
@@ -893,14 +912,14 @@ A line comment occurs. End the code section.
 
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 A multiline comment starts. End the code section and switch to
 single-column layout by closing the "source" div.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 			if isCommentStart(line) {
@@ -920,14 +939,14 @@ single-column layout by closing the "source" div.
 
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 At the end of a multiline comment, we don't know for sure
 what comes next, so we set the status to none.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 		if status == doc {
@@ -942,13 +961,13 @@ what comes next, so we set the status to none.
 
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 Outside any status? Just pass the line to the output.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 		if status == none {
@@ -958,14 +977,14 @@ Outside any status? Just pass the line to the output.
 
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 The last line in the file might be code.
 We need a closing code fence then, and we need to close the divs, too.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 	if status == code {
@@ -976,13 +995,13 @@ We need a closing code fence then, and we need to close the divs, too.
 
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 Close the `gotohugo` namespace div.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 	out += divEnd("gotohugo")
@@ -992,18 +1011,18 @@ Close the `gotohugo` namespace div.
 
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 ## Converting a file
 
 ### Again, some helper functions
 
 `base` strips the extension from a filename. For some reason, this
 function is missing from the standard path library.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 func base(name string) string {
@@ -1012,17 +1031,17 @@ func base(name string) string {
 
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 ### Now the actual conversion
 
 `convertFile` takes a file name, reads that file, converts it to
 Markdown, and writes it to `*outDir/[post/]<basename>.md`
 The path must already exist.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 func convertFile(filename string) (err error) {
@@ -1037,21 +1056,21 @@ func convertFile(filename string) (err error) {
 	md := convert(string(src), basename)
 	err = ioutil.WriteFile(outname, []byte(md), 0644) // -rw-r--r--
 	if err != nil {
-		return errors.Wrap(err, "Cannot write file "+outname)
+		return fmt.Errorf("cannot write file  %s: %w", outname, err)
 	}
 	return nil
 }
 
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 newConvertFunc creates a function that converts the file described by `path`.
 The function is used to create a `time.AfterFunc` function (which takes no parameters).
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 func newConvertFunc(path string) func() {
@@ -1067,101 +1086,55 @@ func newConvertFunc(path string) func() {
 
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 `watchAndConvert` observes the file system under directory <dir>.
 If a file named `<name>.go` in directory `<name>` has changed,
 convert it to Hugo Markdown.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 func watchAndConvert(dirname string) error {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
-		return errors.Wrap(err, "Cannot create new Watcher")
+		return fmt.Errorf("cannot create new Watcher: %w", err)
 	}
 	defer watcher.Close()
 
-```
-
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
-A list of paths that shall trigger conversion. The key has the form "watch/watch.go".
-After timer C times out, the path is sent through channel ch to `receivePathAndConvert()`.
-{{% divend %}} <!--comment-->
-{{% div code %}}
-
-```go
-	watchedPath := map[string]*time.Timer{}
-
-```
-
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
-Open the directory specified by -watch
-{{% divend %}} <!--comment-->
-{{% div code %}}
-
-```go
-	dir, err := os.Open(dirname)
+	entries, err := ioutil.ReadDir(dirname)
 	if err != nil {
-		return errors.Wrap(err, "Could not open "+dirname)
-	}
-	defer dir.Close()
-	err = dir.Chdir()
-	if err != nil {
-		return errors.Wrap(err, "Could not cd to "+dirname)
+		return fmt.Errorf("cannot read directory %s: %w", dirname, err)
 	}
 
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
-Read all entries in this directory
-{{% divend %}} <!--comment-->
-{{% div code %}}
-
-```go
-	entries, err := dir.Readdir(0)
-	if err != nil {
-		return errors.Wrap(err, "Cannot read directory "+dirname)
-	}
-
-```
-
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 Watch the given directory.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 	err = watcher.Add(dirname)
 	if err != nil {
-		return errors.Wrap(err, "Failed to add "+dirname+" to watcher")
+		return fmt.Errorf("failed to add %s to watcher: %w", dirname, err)
 	}
 
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 If the entry is a directory, watch for creation of or changes to a
 Go file under that dir of the same name as the dir, e.g. `watch/watch.go`.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 	msg := ("Watching " + dirname + " and: ")
@@ -1172,63 +1145,61 @@ Go file under that dir of the same name as the dir, e.g. `watch/watch.go`.
 
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
-Watch the subdir for any changes.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
+ignore dot folders
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
-			err = watcher.Add(fname)
-			if err != nil {
-				return errors.Wrap(err, "Failed to add "+fname+" to watcher")
+			if fname[0] == '.' {
+				continue
 			}
-			msg += fname + " "
 
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
-Remember the path that shall trigger conversion. As mentioned before,
-this is a path like `watch/watch.go`.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
+Watch the subdir for any changes.
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
-			fpath := filepath.Join(fname, fname+".go")
-			dbg("Watching " + fpath + ".")
-			watchedPath[fpath] = time.AfterFunc(time.Second, newConvertFunc(fpath))
-			watchedPath[fpath].Stop()
+			err = watcher.Add(filepath.Join(dirname, fname))
+			if err != nil {
+				return fmt.Errorf("failed to add %s to watcher: %w", fname, err)
+			}
+			msg += fname + " "
 		}
 	}
 	log.Println(msg)
 
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 Avoid that deadlock detection kicks in.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 	watchdog := time.NewTicker(10 * time.Second)
 
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 Now look out for FS events.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 	for {
@@ -1236,45 +1207,132 @@ Now look out for FS events.
 		case event := <-watcher.Events:
 			dbg("event:", event)
 			if event.Op&(fsnotify.Create|fsnotify.Write) != 0 {
-				if watchedPath[event.Name] != nil {
-					watchedPath[event.Name].Reset(time.Second) // Start if stopped. Reset if running.
+				p, f := filepath.Split(event.Name)
+				_, d := filepath.Split(p[:len(p)-1])
+				e := filepath.Ext(f)
+				dbg(fmt.Sprintf("p: %s, f: %s, d: %s, e: %s", p, f, d, e))
+```
+
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
+If the path matches <name>/<name>.go or ...go2,
+{{< divend >}} <!--comment-->
+{{< div code >}}
+
+```go
+				if f == d+e {
+```
+
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
+Only convert a .go file if no .go2 file of the same name exists
+{{< divend >}} <!--comment-->
+{{< div code >}}
+
+```go
+					if e == ".go" {
+						if _, err := os.Stat(filepath.Join(p, d+".go2")); err == nil {
+```
+
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
+go2 file exists, leave .go file alone
+{{< divend >}} <!--comment-->
+{{< div code >}}
+
+```go
+							break
+						}
+					}
+```
+
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
+give the file system a second to consolidate the write, then convert the file
+{{< divend >}} <!--comment-->
+{{< div code >}}
+
+```go
+					time.AfterFunc(time.Second, newConvertFunc(event.Name))
 				}
 			}
 		case err := <-watcher.Errors:
-			return errors.Wrap(err, "Error while watching "+dirname)
+			return fmt.Errorf("error while watching  %s: %w", dirname, err)
 		case <-watchdog.C:
 			dbg("Watchdog triggered.")
 		}
 	}
+}
 
+```
+
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
+convertAll converts all blog articles recursively
+Input: directory to start. This directory should contain
+blog directories containing go files that follow the pattern
+`abc/abc.go`.
+{{< divend >}} <!--comment-->
+{{< div code >}}
+
+```go
+func convertAll(dir string) error {
+	allEntries, err := ioutil.ReadDir(dir)
+	if err != nil {
+		return fmt.Errorf("cannot read directory  %s: %w", dir, err)
+	}
+	for _, entry := range allEntries {
+		if entry.IsDir() {
+			file := filepath.Join(entry.Name(), entry.Name()+".go")
+			if _, err := os.Stat(file); os.IsNotExist(err) {
+				dbg("Skipping non-existent file", file)
+				continue
+			}
+			log.Println("Converting", file)
+			err := convertFile(file)
+			if err != nil {
+				return fmt.Errorf("cannot convert  %s: %w", file, err)
+			}
+		}
+	}
 	return nil
 }
 
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 ## main - Where it all starts
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 func main() {
 
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 Start the Gops agent.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
-	if err := agent.Listen(nil); err != nil {
+	if err := agent.Listen(agent.Options{}); err != nil {
 		log.Fatal(err)
 	}
 
@@ -1283,13 +1341,13 @@ Start the Gops agent.
 
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 If $HUGODIR is set and -hugo isn't, copy $HUGODIR into *hugoDir.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 	if len(*hugoDir) == 0 && len(hugoDirEnv) > 0 {
@@ -1298,13 +1356,13 @@ If $HUGODIR is set and -hugo isn't, copy $HUGODIR into *hugoDir.
 
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 If *hugoDir is set, use this instead of *outDir. Also set the subdirs accordingly.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 	if len(*hugoDir) > 0 {
@@ -1316,35 +1374,44 @@ If *hugoDir is set, use this instead of *outDir. Also set the subdirs accordingl
 
 ```
 
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% div ccpair %}}
-{{% div comment %}}
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< div ccpair >}}
+{{< div comment >}}
 With `-watch=<dir>`, watch the subdirs of `<dir>` for changes.
-{{% divend %}} <!--comment-->
-{{% div code %}}
+{{< divend >}} <!--comment-->
+{{< div code >}}
 
 ```go
 	if len(*watch) > 0 {
 		log.Println("Running in watch mode. Hit Ctrl-C to stop.")
 		err := watchAndConvert(*watch)
 		if err != nil {
-			log.Println(errors.Wrap(err, "Conversion Error"))
+			log.Println(fmt.Errorf("conversion error: %w", err))
 		}
 	} else {
 		for _, filename := range flag.Args() {
 			log.Println("Converting", filename)
 			err := convertFile(filename)
 			if err != nil {
-				log.Fatal(errors.Wrap(err, "Conversion Error"))
+				log.Fatal(fmt.Errorf("conversion error: %w", err))
 			}
 		}
 	}
+
+	if len(*recursive) > 0 {
+		log.Println("Converting all articles in", *recursive)
+		err := convertAll(*recursive)
+		if err != nil {
+			log.Fatalln(fmt.Errorf("recursive conversion error: %w", err))
+		}
+	}
+
 	log.Println("Done.")
 }
 
 
 ```
-{{% divend %}} <!--code-->
-{{% divend %}} <!--ccpair-->
-{{% divend %}} <!--gotohugo-->
+{{< divend >}} <!--code-->
+{{< divend >}} <!--ccpair-->
+{{< divend >}} <!--gotohugo-->

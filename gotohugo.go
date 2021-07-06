@@ -14,7 +14,9 @@ tags = ["Hugo", "Markdown", "Hype"]
 +++
 
 
-`gotohugo` converts a .go file into a Markdown file. Comments can (and should) contain [Markdown](https://daringfireball.net/projects/markdown) text. Comment delimiters are stripped, and Go code is put into code fences. There are also two extra features included for free.
+`gotohugo` converts a .go or .go2 file into a Markdown file. Comments can (and should) contain [Markdown](https://daringfireball.net/projects/markdown) text. Comment delimiters are stripped, and Go code is put into code fences. There are also two extra features included for free.
+
+If a .go2 file is present that matches the required naming scheme, `gotohugo` processes this `.go2` file and ignores a `.go` file of the same name. This allows working with the `go2go` tool until generics are part of mainstream Go releases.
 
 <!--more-->
 
@@ -283,13 +285,13 @@ imageTag should properly match the following image tags:
 func getHTMLSnippet(path, basename string) (out string) {
 	hypeHTML, err := ioutil.ReadFile(path)
 	if err != nil {
-		wrappedErr := errors.Wrap(err, "**No Hype file found at "+path+". Please run gotohugo again after creating the Hype animation HTML export.")
+		wrappedErr := fmt.Errorf("no Hype file found at  %s . Please run gotohugo again after creating the Hype animation HTML export.: %w", path, err)
 		log.Println(wrappedErr.Error()) // notify the developer via shell
 		return wrappedErr.Error()       // remind the developer by adding the message to the rendered page
 	}
 	inSnippet := false
 	// Remove carriage returns.
-	lines := strings.Replace(string(hypeHTML), "\r", "", -1)
+	lines := strings.ReplaceAll(string(hypeHTML), "\r", "")
 	// Split at newline and process each line.
 	for _, line := range strings.Split(lines, "\n") {
 		if strings.Contains(line, "<!-- copy these lines to your document: -->") {
@@ -303,7 +305,7 @@ func getHTMLSnippet(path, basename string) (out string) {
 			inSnippet = false // there can be more than one "end copy" strings in the file
 		}
 		if inSnippet {
-			out += extendSrc(strings.Trim(line, "	\t"), basename) + "\n"
+			out += extendSrc(strings.Trim(line, "\t"), basename) + "\n"
 		}
 	}
 	return out + "\n"
@@ -328,7 +330,7 @@ func replaceHypeTag(line, base string) (out string, found bool, err error) {
 		return line, false, nil
 	}
 	if len(matches) < 2 {
-		return "", false, errors.New("Error: Found Hype tag but no valid path, in line:\n" + line)
+		return "", false, errors.New("found Hype tag but no valid path, in line:\n" + line)
 	}
 	// substitute the Hype HTML snippet for the HYPE tag.
 	path := matches[1]
@@ -381,7 +383,7 @@ func convert(in, base string) (out string) {
 			// If the line contains a Hype tag, replace it with the Hype HTML snippet.
 			line, found, err := replaceHypeTag(line, base)
 			if err != nil {
-				e := errors.Wrap(err, "Failed generating Hype tag from line "+line)
+				e := fmt.Errorf("failed generating Hype tag from line  %s: %w", line, err)
 				fmt.Printf("%s\n", e)
 				out += e.Error()
 			}
@@ -582,7 +584,7 @@ func convertFile(filename string) (err error) {
 	md := convert(string(src), basename)
 	err = ioutil.WriteFile(outname, []byte(md), 0644) // -rw-r--r--
 	if err != nil {
-		return errors.Wrap(err, "Cannot write file "+outname)
+		return fmt.Errorf("cannot write file  %s: %w", outname, err)
 	}
 	return nil
 }
@@ -606,23 +608,19 @@ func newConvertFunc(path string) func() {
 func watchAndConvert(dirname string) error {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
-		return errors.Wrap(err, "Cannot create new Watcher")
+		return fmt.Errorf("cannot create new Watcher: %w", err)
 	}
 	defer watcher.Close()
 
-	// A list of paths that shall trigger conversion. The key has the form "watch/watch.go".
-	// After timer C times out, the path is sent through channel ch to `receivePathAndConvert()`.
-	watchedPath := map[string]*time.Timer{}
-
 	entries, err := ioutil.ReadDir(dirname)
 	if err != nil {
-		return errors.Wrap(err, "Cannot read directory "+dirname)
+		return fmt.Errorf("cannot read directory %s: %w", dirname, err)
 	}
 
 	// Watch the given directory.
 	err = watcher.Add(dirname)
 	if err != nil {
-		return errors.Wrap(err, "Failed to add "+dirname+" to watcher")
+		return fmt.Errorf("failed to add %s to watcher: %w", dirname, err)
 	}
 
 	// If the entry is a directory, watch for creation of or changes to a
@@ -633,19 +631,17 @@ func watchAndConvert(dirname string) error {
 		if fsobj.IsDir() {
 			fname := fsobj.Name()
 
+			// ignore dot folders
+			if fname[0] == '.' {
+				continue
+			}
+
 			// Watch the subdir for any changes.
-			err = watcher.Add(fname)
+			err = watcher.Add(filepath.Join(dirname, fname))
 			if err != nil {
-				return errors.Wrap(err, "Failed to add "+fname+" to watcher")
+				return fmt.Errorf("failed to add %s to watcher: %w", fname, err)
 			}
 			msg += fname + " "
-
-			// Remember the path that shall trigger conversion. As mentioned before,
-			// this is a path like `watch/watch.go`.
-			fpath := filepath.Join(fname, fname+".go")
-			dbg("Watching " + fpath + ".")
-			watchedPath[fpath] = time.AfterFunc(time.Second, newConvertFunc(fpath))
-			watchedPath[fpath].Stop()
 		}
 	}
 	log.Println(msg)
@@ -659,12 +655,25 @@ func watchAndConvert(dirname string) error {
 		case event := <-watcher.Events:
 			dbg("event:", event)
 			if event.Op&(fsnotify.Create|fsnotify.Write) != 0 {
-				if watchedPath[event.Name] != nil {
-					watchedPath[event.Name].Reset(time.Second) // Start if stopped. Reset if running.
+				p, f := filepath.Split(event.Name)
+				_, d := filepath.Split(p[:len(p)-1])
+				e := filepath.Ext(f)
+				dbg(fmt.Sprintf("p: %s, f: %s, d: %s, e: %s", p, f, d, e))
+				// If the path matches <name>/<name>.go or ...go2,
+				if f == d+e {
+					// Only convert a .go file if no .go2 file of the same name exists
+					if e == ".go" {
+						if _, err := os.Stat(filepath.Join(p, d+".go2")); err == nil {
+							// go2 file exists, leave .go file alone
+							break
+						}
+					}
+					// give the file system a second to consolidate the write, then convert the file
+					time.AfterFunc(time.Second, newConvertFunc(event.Name))
 				}
 			}
 		case err := <-watcher.Errors:
-			return errors.Wrap(err, "Error while watching "+dirname)
+			return fmt.Errorf("error while watching  %s: %w", dirname, err)
 		case <-watchdog.C:
 			dbg("Watchdog triggered.")
 		}
@@ -678,7 +687,7 @@ func watchAndConvert(dirname string) error {
 func convertAll(dir string) error {
 	allEntries, err := ioutil.ReadDir(dir)
 	if err != nil {
-		return errors.Wrap(err, "Cannot read directory "+dir)
+		return fmt.Errorf("cannot read directory  %s: %w", dir, err)
 	}
 	for _, entry := range allEntries {
 		if entry.IsDir() {
@@ -690,7 +699,7 @@ func convertAll(dir string) error {
 			log.Println("Converting", file)
 			err := convertFile(file)
 			if err != nil {
-				return errors.Wrap(err, "Cannot convert "+file)
+				return fmt.Errorf("cannot convert  %s: %w", file, err)
 			}
 		}
 	}
@@ -726,14 +735,14 @@ func main() {
 		log.Println("Running in watch mode. Hit Ctrl-C to stop.")
 		err := watchAndConvert(*watch)
 		if err != nil {
-			log.Println(errors.Wrap(err, "Conversion Error"))
+			log.Println(fmt.Errorf("conversion error: %w", err))
 		}
 	} else {
 		for _, filename := range flag.Args() {
 			log.Println("Converting", filename)
 			err := convertFile(filename)
 			if err != nil {
-				log.Fatal(errors.Wrap(err, "Conversion Error"))
+				log.Fatal(fmt.Errorf("conversion error: %w", err))
 			}
 		}
 	}
@@ -742,7 +751,7 @@ func main() {
 		log.Println("Converting all articles in", *recursive)
 		err := convertAll(*recursive)
 		if err != nil {
-			log.Fatalln(errors.Wrap(err, "Recursive conversion error"))
+			log.Fatalln(fmt.Errorf("recursive conversion error: %w", err))
 		}
 	}
 
