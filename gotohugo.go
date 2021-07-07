@@ -660,11 +660,11 @@ func watchAndConvert(dirname string) error {
 				e := filepath.Ext(f)
 				dbg(fmt.Sprintf("p: %s, f: %s, d: %s, e: %s", p, f, d, e))
 				// If the path matches <name>/<name>.go or ...go2,
-				if f == d+e {
+				if f == d+e && (e == ".go" || e == ".go2") { // the second part rules out ".go~" or ".go2~" etc.
 					// Only convert a .go file if no .go2 file of the same name exists
 					if e == ".go" {
 						if _, err := os.Stat(filepath.Join(p, d+".go2")); err == nil {
-							// go2 file exists, leave .go file alone
+							// go2 file of the same base name exists, leave .go file alone
 							break
 						}
 					}
