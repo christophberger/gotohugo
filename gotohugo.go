@@ -340,7 +340,7 @@ func replaceHypeTag(line, base string) (out string, found bool, err error) {
 }
 
 // div returns a Hugo shortcode of the form
-// &#123;{% div <name> %}}.
+// &#123;{< div <name> >}}.
 func div(name string) string {
 	return "{{< div " + name + " >}}\n"
 }
@@ -486,7 +486,8 @@ func convert(in, base string) (out string) {
 			} else {
 				status = code
 				out += divEnd("comment")
-				out += div("code")
+				// class language-klipse-go is used by the Klipse plugin.
+				out += div("code language-klipse-go")
 				out += "\n```go\n"
 				out += line + "\n"
 				continue
