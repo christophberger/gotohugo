@@ -4,8 +4,8 @@ github.com/fsnotify/fsnotify v1.5.2 h1:M+aHumjFDOySyAjWICQHrDfuizRTP7nzkRHxXfyRP
 github.com/fsnotify/fsnotify v1.5.2/go.mod h1:VKyWoa5earkjWzuYFJOy3s0DLrlWgSh5nf5hjFuJcAw=
 github.com/go-ole/go-ole v1.2.5/go.mod h1:pprOEPIfldk/42T2oK7lQ4v4JSDwmV0As9GaiUsvbm0=
 github.com/go-ole/go-ole v1.2.6-0.20210915003542-8b1f7f90f6b1/go.mod h1:pprOEPIfldk/42T2oK7lQ4v4JSDwmV0As9GaiUsvbm0=
-github.com/google/gops v0.3.21 h1:SmULDdFdSLaPZHR3FgPJfNFfrrohoHUgC9DenFuGrUE=
-github.com/google/gops v0.3.21/go.mod h1:7diIdLsqpCihPSX3fQagksT/Ku/y4RL9LHTlKyEUDl8=
+github.com/google/gops v0.3.22 h1:lyvhDxfPLHAOR2xIYwjPhN387qHxyU21Sk9sz/GhmhQ=
+github.com/google/gops v0.3.22/go.mod h1:7diIdLsqpCihPSX3fQagksT/Ku/y4RL9LHTlKyEUDl8=
 github.com/keybase/go-ps v0.0.0-20190827175125-91aafc93ba19/go.mod h1:hY+WOq6m2FpbvyrI93sMaypsttvaIL5nhVR92dTMUcQ=
 github.com/pkg/errors v0.0.0-20161029093637-248dadf4e906 h1:aXc/AM323HlkOXjl3QuSO06wbXK45HrzBT+pwVOufXg=
 github.com/pkg/errors v0.0.0-20161029093637-248dadf4e906/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
