@@ -283,7 +283,7 @@ imageTag should properly match the following image tags:
 // getHTMLSnippet opens the file determined by `path`, and scans the file for the HTML
 // snippet to insert. It returns the HTML snippet.
 func getHTMLSnippet(path, basename string) (out string) {
-	hypeHTML, err := ioutil.ReadFile(path)
+	hypeHTML, err := os.ReadFile(path)
 	if err != nil {
 		wrappedErr := fmt.Errorf("no Hype file found at  %s . Please run gotohugo again after creating the Hype animation HTML export.: %w", path, err)
 		log.Println(wrappedErr.Error()) // notify the developer via shell
@@ -582,7 +582,7 @@ func convertFile(filename string) (err error) {
 	basename := base(name) // strip ".go"
 	outname := filepath.Join(*outDir, postDir, basename) + ext
 	md := convert(string(src), basename)
-	err = ioutil.WriteFile(outname, []byte(md), 0644) // -rw-r--r--
+	err = os.WriteFile(outname, []byte(md), 0644) // -rw-r--r--
 	if err != nil {
 		return fmt.Errorf("cannot write file  %s: %w", outname, err)
 	}
@@ -612,7 +612,7 @@ func watchAndConvert(dirname string) error {
 	}
 	defer watcher.Close()
 
-	entries, err := ioutil.ReadDir(dirname)
+	dirEntries, err := os.ReadDir(dirname)
 	if err != nil {
 		return fmt.Errorf("cannot read directory %s: %w", dirname, err)
 	}
@@ -627,11 +627,11 @@ func watchAndConvert(dirname string) error {
 
 	dirBasename := filepath.Base(dirname)
 
-	for _, fsobj := range entries {
+	for _, dirEntry := range dirEntries {
 
-		fname := fsobj.Name()
+		fname := dirEntry.Name()
 
-		if fsobj.IsDir() {
+		if dirEntry.IsDir() {
 			// If the entry is a directory, watch for creation of or changes to a
 			// Go file under that dir of the same name as the dir, e.g. `watch/watch.go`.
 
@@ -700,7 +700,7 @@ func watchAndConvert(dirname string) error {
 // blog directories containing go files that follow the pattern
 // `abc/abc.go`.
 func convertAll(dir string) error {
-	allEntries, err := ioutil.ReadDir(dir)
+	allEntries, err := os.ReadDir(dir)
 	if err != nil {
 		return fmt.Errorf("cannot read directory  %s: %w", dir, err)
 	}
