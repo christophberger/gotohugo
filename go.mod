@@ -1,4 +1,4 @@
-module gotohugo
+module github.com/christophberger/gotohugo
 
 go 1.12
 
