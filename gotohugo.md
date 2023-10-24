@@ -100,7 +100,7 @@ Use the toml or yaml syntax, depending on the setting in the Hugo configuration.
 
 The first part of the intro is a summary that Hugo can render on the list page. To mark the end of the summary, use the Hugo summary divider to manually define where the article gets split:
 
-`<!``--more-->`
+`<!--more-->`
 
 After that, continue with the intro.
 
@@ -116,7 +116,7 @@ For example, if the markdown file is named `gotohugo.md`, then the images and an
 
 ### Images and Hype animations MUST exist at the output dir, in the aforementioned subfolder.
 
-Reason is that `gotohugo` fetches an HTML snippet from the Hype HTML. If it cannot find the Hype HTML, it errors out.
+The reason is that `gotohugo` fetches an HTML snippet from the Hype HTML. If it cannot find the Hype HTML, it errors out.
 
 
 ### Do not specify the path of an image or animation html.
