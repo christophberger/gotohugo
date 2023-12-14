@@ -8,6 +8,7 @@ title = "gotohugo: Converting commented Go files to Markdown with custom Hugo sh
 description = "gotohugo is a converter from .go to .md with some Hugo-specific additions. Comments are converted to Markdown text, code is converted to Markdown code blocks. Additional Hugo shortcodes are inserted for better layout control."
 author = "Christoph Berger"
 date = "2016-04-25"
+draft = "true"
 domain = ["Blogging"]
 categories = ["Tutorial"]
 tags = ["Hugo", "Markdown", "Hype"]
@@ -24,7 +25,7 @@ Extra #1: A non-standard "HYPE" tag can be used for inserting Tumult Hype HTML a
 
 Extra #2: gotohugo inserts Hugo shortcodes around doc and code parts to help creating a side-by-side layout à la docgo, where the code comments appear in an extra column left to the code. This very much adds to readability IMHO. This feature also comes with full Responsive Layout capability - if the viewport is too narrow, code and comment collapse into a single column.
 
-Extra #3: `gotohugo` inserts the custom Hugo shortcode `{{% announcement % }}` after the `&lt;!--more-->` tag that separates the summary from the rest of the text. This can be used for inserting announcement panels into all blog posts. The shortcode needs an appropriate shortcode definition at Hugo's end.
+Extra #3: `gotohugo` inserts the custom Hugo shortcode `{{< announcement >}}` after the `&lt;!--more-->` tag that separates the summary from the rest of the text. This can be used for inserting announcement panels into all blog posts. The shortcode needs an appropriate shortcode definition at Hugo's end.
 
 
 ## Usage
@@ -98,7 +99,7 @@ Use the toml or yaml syntax, depending on the setting in the Hugo configuration.
 
 The first part of the intro is a summary that Hugo can render on the list page. To mark the end of the summary, use the Hugo summary divider to manually define where the article gets split:
 
-`<!``--more-->`
+`<!--more-->`
 
 After that, continue with the intro.
 
@@ -150,6 +151,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io/fs"
 	"io/ioutil"
 	"log"
 	"os"
@@ -187,7 +189,7 @@ var (
 	srcTag           = regexp.MustCompile(srcPtrn)          // matches Hype container div src tag
 	debug            = flag.Bool("d", false, "Enable debug-level logging.")
 	watch            = flag.String("watch", "", "Watch dirs recursively. If <name>/<name>.go changes, convert the file to Hugo Markdown.")
-	outDir           = flag.String("out", "out", "Output directory. Defaults to './out/'. If -hugo or $HUGODIR is set, -out has no effect.")
+	outDir           = flag.String("out", "out", "Output directory. Defaults to './out/'. Overrides $HUGODIR. If -hugo is set, -out has no effect.")
 	hugoDir          = flag.String("hugo", "", "Hugo root directory. Overrides -out and $HUGODIR.")
 	recursive        = flag.String("recursive", "", "Convert recursively all abc/abc.go files")
 	postDir          = "" // gets set to "/content/post" if -hugo is used instead of -out
@@ -570,17 +572,27 @@ func base(name string) string {
 // ### Now the actual conversion
 //
 // `convertFile` takes a file name, reads that file, converts it to
-// Markdown, and writes it to `*outDir/[post/]<basename>.md`
-// The path must already exist.
+// Markdown, and writes it to `*outDir/[post/]<basename>/index.md`.
+// It creates the page bundle directory but expects the base path to exist.
 func convertFile(filename string) (err error) {
 	src, err := ioutil.ReadFile(filename)
 	if err != nil {
 		log.Fatal("Cannot read file " + filename + "\n" + err.Error())
 	}
 	name := filepath.Base(filename)
-	ext := ".md"
 	basename := base(name) // strip ".go"
-	outname := filepath.Join(*outDir, postDir, basename) + ext
+	// Create the output directory if it doesn't exist.
+	outpath := filepath.Join(*outDir, postDir, basename)
+	if _, err := os.Stat(outpath); err != nil {
+		if os.IsNotExist(err) {
+			if err = os.Mkdir(outpath, fs.ModeDir|0774); err != nil {
+				return fmt.Errorf("Cannot create output directory  %s: %w", outpath, err)
+			}
+		} else {
+			return fmt.Errorf("Cannot stat output directory  %s: %w", outpath, err)
+		}
+	}
+	outname := filepath.Join(outpath, "index.md")
 	md := convert(string(src), basename)
 	err = os.WriteFile(outname, []byte(md), 0644) // -rw-r--r--
 	if err != nil {
@@ -737,12 +749,12 @@ func main() {
 		*hugoDir = hugoDirEnv
 	}
 
-	// If *hugoDir is set, use this instead of *outDir. Also set the subdirs accordingly.
-	if len(*hugoDir) > 0 {
+	// If *hugoDir is set and *outDir isn't, use *hugoDir. Also set the subdirs accordingly.
+	if len(*hugoDir) > 0 && len(*outDir) == 0 {
 		*outDir = *hugoDir
 		postDir = filepath.Join("content", "post")
-		mediaDir = filepath.Join("static", "media") // media dir as Hugo sees it
-		publicMediaDir = "media"                    // media dir as the Web server sees it
+		mediaDir = "media"       // media dir as Hugo sees it
+		publicMediaDir = "media" // media dir as the Web server sees it
 	}
 
 	// With `-watch=<dir>`, watch the subdirs of `<dir>` for changes.
