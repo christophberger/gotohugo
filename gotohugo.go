@@ -189,7 +189,7 @@ var (
 	srcTag           = regexp.MustCompile(srcPtrn)          // matches Hype container div src tag
 	debug            = flag.Bool("d", false, "Enable debug-level logging.")
 	watch            = flag.String("watch", "", "Watch dirs recursively. If <name>/<name>.go changes, convert the file to Hugo Markdown.")
-	outDir           = flag.String("out", "out", "Output directory. Defaults to './out/'. Overrides $HUGODIR. If -hugo is set, -out has no effect.")
+	outDir           = flag.String("out", "", "Output directory. Defaults to './out/'. Overrides $HUGODIR. If -hugo is set, -out has no effect.")
 	hugoDir          = flag.String("hugo", "", "Hugo root directory. Overrides -out and $HUGODIR.")
 	recursive        = flag.String("recursive", "", "Convert recursively all abc/abc.go files")
 	postDir          = "" // gets set to "/content/post" if -hugo is used instead of -out
