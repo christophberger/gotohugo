@@ -152,7 +152,7 @@ This code is governed by a BSD 3-clause license that can be found in LICENSE.txt
 {{< div comment >}}
 ## Imports and Globals
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 
@@ -217,7 +217,7 @@ var (
 
 debug prints to the log output if the debug flag is set.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 func dbg(args ...interface{}) {
@@ -234,7 +234,7 @@ func dbg(args ...interface{}) {
 {{< div comment >}}
 isLineComment returns true if the text in the input string starts with //.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 func isLineComment(line string) bool {
@@ -249,7 +249,7 @@ func isLineComment(line string) bool {
 {{< div comment >}}
 isCommentStart detects the start of a multiline comment.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 func isCommentStart(line string) bool {
@@ -264,7 +264,7 @@ func isCommentStart(line string) bool {
 {{< div comment >}}
 isCommentEnd detects the end of a multiline comment.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 func isCommentEnd(line string) bool {
@@ -280,7 +280,7 @@ func isCommentEnd(line string) bool {
 isFrontmatterDelim receives an integer and increases it by one
 if it finds a frontmatter deliminter in the current line.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 func isFrontmatterDelim(line string) bool {
@@ -295,7 +295,7 @@ func isFrontmatterDelim(line string) bool {
 {{< div comment >}}
 isSummaryDivider detects the summary divider.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 func isSummaryDivider(line string) bool {
@@ -315,7 +315,7 @@ func isPreformatted(line string) bool {
 extendPath takes a string that should contain a filename
 and prepends `/media/<basename>/` to it.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 func extendPath(filename, basename string) string {
@@ -332,7 +332,7 @@ func extendSrc takes a string that should contain the line from the HTML snippet
 starts with `<div id="animation_hype_container"...` and prepends `/media/<basename>` to
 the src="..." string.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 func extendSrc(src, basename string) string {
@@ -350,7 +350,7 @@ tag. If it finds one, it extends the image path to include
 `/media/<basename>/` and returns the modified line.
 Otherwise it returns the unmodified line.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 func extendImagePath(line, basename string) string {
@@ -394,7 +394,7 @@ imageTag should properly match the following image tags:
 getHTMLSnippet opens the file determined by `path`, and scans the file for the HTML
 snippet to insert. It returns the HTML snippet.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 func getHTMLSnippet(path, basename string) (out string) {
@@ -413,7 +413,7 @@ func getHTMLSnippet(path, basename string) (out string) {
 {{< div comment >}}
 Remove carriage returns.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 	lines := strings.ReplaceAll(string(hypeHTML), "\r", "")
@@ -425,7 +425,7 @@ Remove carriage returns.
 {{< div comment >}}
 Split at newline and process each line.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 	for _, line := range strings.Split(lines, "\n") {
@@ -460,7 +460,7 @@ It returns:
 * out: the (possibly modified) line
 * found: true if a HYPE tag was found (and processed)
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 func replaceHypeTag(line, base string) (out string, found bool, err error) {
@@ -472,7 +472,7 @@ func replaceHypeTag(line, base string) (out string, found bool, err error) {
 {{< div comment >}}
 Do not process preformatted text
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 	if isPreformatted(line) {
@@ -486,7 +486,7 @@ Do not process preformatted text
 {{< div comment >}}
 Find the HYPE tag if it exists.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 	matches := hypeTag.FindStringSubmatch(line)
@@ -504,7 +504,7 @@ Find the HYPE tag if it exists.
 {{< div comment >}}
 substitute the Hype HTML snippet for the HYPE tag.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 	path := matches[1]
@@ -522,7 +522,7 @@ substitute the Hype HTML snippet for the HYPE tag.
 div returns a Hugo shortcode of the form
 &#123;{< div <name> >}}.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 func div(name string) string {
@@ -537,7 +537,7 @@ func div(name string) string {
 {{< div comment >}}
 divEnd returns the end marker of a div.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 func divEnd(name string) string {
@@ -553,7 +553,7 @@ func divEnd(name string) string {
 convert receives a string containing commented Go code and converts it
 line by line into a Markdown document.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 func convert(in, base string) (out string) {
@@ -577,7 +577,7 @@ func convert(in, base string) (out string) {
 {{< div comment >}}
 Turn CR/LF line endings into pure LF line endings.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 	in = strings.Replace(in, "\r", "", -1)
@@ -589,7 +589,7 @@ Turn CR/LF line endings into pure LF line endings.
 {{< div comment >}}
 Split at newline and process each line.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 	for _, line := range strings.Split(in, "\n") {
@@ -603,7 +603,7 @@ Split at newline and process each line.
 First we do some line processing that does **not** necessarily call
 `continue`.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 
@@ -616,7 +616,7 @@ First we do some line processing that does **not** necessarily call
 Images and Hype animations can be located in the intro,
 in comments, or in pure doc sections.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 		if status == doc || status == comment || status == intro {
@@ -629,7 +629,7 @@ in comments, or in pure doc sections.
 {{< div comment >}}
 If the line contains an image tag, extend the path of the tag.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 			line = extendImagePath(line, base)
@@ -642,7 +642,7 @@ If the line contains an image tag, extend the path of the tag.
 {{< div comment >}}
 If the line contains a Hype tag, replace it with the Hype HTML snippet.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 			line, found, err := replaceHypeTag(line, base)
@@ -666,7 +666,7 @@ If the line contains a Hype tag, replace it with the Hype HTML snippet.
 if the line belongs to Hugo front matter, append it to out
 and continue with the next line.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 		if status == beforefrontmatter {
@@ -685,7 +685,7 @@ Discard anything before the front matter. There should **only**
 be an optional //go:... directive, and the start of the first
 multiline comment, and nothing else.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 			continue
@@ -701,7 +701,7 @@ Within front matter, if the second delimiter is found,
 switch to summary section.
 Also generate a `gotohugo` namespace div.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 		if status == frontmatter {
@@ -725,7 +725,7 @@ After the summary divider, -
 - insert author
 - start the intro.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 		if status == summary {
@@ -741,7 +741,7 @@ After the summary divider, -
 {{< div comment >}}
 out += "{{< author >}}\n"
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 				out += div("intro doc")
@@ -762,7 +762,7 @@ Intro is finished when the comment end delimiter occurs.
 The status afterwards is not defined. Comment/code pairs might follow,
 or another multiline comment. Or the end of the file.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 		if status == intro {
@@ -784,7 +784,7 @@ or another multiline comment. Or the end of the file.
 A line comment can occur after code, after another line comment,
 or when no other section is active.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 		if status == none || status == code {
@@ -797,7 +797,7 @@ or when no other section is active.
 {{< div comment >}}
 If the last line was code, add a closing code fence.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 				if status == code {
@@ -815,7 +815,7 @@ If the last line was code, add a closing code fence.
 Multiline comments switch the status to none at the end.
 In this case, start a new source section.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 				if status == none {
@@ -832,7 +832,7 @@ In this case, start a new source section.
 {{< div comment >}}
 Strip the comment delimiters.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 				out += commentRe.ReplaceAllString(line, "") + "\n"
@@ -848,7 +848,7 @@ Strip the comment delimiters.
 {{< div comment >}}
 While processing line comments.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 		if status == comment {
@@ -861,7 +861,7 @@ While processing line comments.
 If still looking at a line comment, strip the delims.
 Else switch into code status.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 			if isLineComment(line) {
@@ -878,7 +878,7 @@ Else switch into code status.
 {{< div comment >}}
 class language-klipse-go is used by the Klipse plugin.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 				out += div("code language-klipse-go")
@@ -896,7 +896,7 @@ class language-klipse-go is used by the Klipse plugin.
 {{< div comment >}}
 While processing code, look out for comments.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 		if status == code {
@@ -909,7 +909,7 @@ While processing code, look out for comments.
 {{< div comment >}}
 A line comment occurs. End the code section.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 			if isLineComment(line) {
@@ -932,7 +932,7 @@ A line comment occurs. End the code section.
 A multiline comment starts. End the code section and switch to
 single-column layout by closing the "source" div.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 			if isCommentStart(line) {
@@ -959,7 +959,7 @@ single-column layout by closing the "source" div.
 At the end of a multiline comment, we don't know for sure
 what comes next, so we set the status to none.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 		if status == doc {
@@ -980,7 +980,7 @@ what comes next, so we set the status to none.
 {{< div comment >}}
 Outside any status? Just pass the line to the output.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 		if status == none {
@@ -997,7 +997,7 @@ Outside any status? Just pass the line to the output.
 The last line in the file might be code.
 We need a closing code fence then, and we need to close the divs, too.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 	if status == code {
@@ -1014,7 +1014,7 @@ We need a closing code fence then, and we need to close the divs, too.
 {{< div comment >}}
 Close the `gotohugo` namespace div.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 	out += divEnd("gotohugo")
@@ -1035,7 +1035,7 @@ Close the `gotohugo` namespace div.
 `base` strips the extension from a filename. For some reason, this
 function is missing from the standard path library.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 func base(name string) string {
@@ -1054,7 +1054,7 @@ func base(name string) string {
 Markdown, and writes it to `*outDir/[post/]<basename>/index.md`.
 It creates the page bundle directory but expects the base path to exist.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 func convertFile(filename string) (err error) {
@@ -1072,7 +1072,7 @@ func convertFile(filename string) (err error) {
 {{< div comment >}}
 Create the output directory if it doesn't exist.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 	outpath := filepath.Join(*outDir, postDir, basename)
@@ -1103,7 +1103,7 @@ Create the output directory if it doesn't exist.
 newConvertFunc creates a function that converts the file described by `path`.
 The function is used to create a `time.AfterFunc` function (which takes no parameters).
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 func newConvertFunc(path string) func() {
@@ -1127,7 +1127,7 @@ func newConvertFunc(path string) func() {
 If a file named `<name>.go` in directory `<name>` has changed,
 convert it to Hugo Markdown.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 func watchAndConvert(dirname string) error {
@@ -1150,7 +1150,7 @@ func watchAndConvert(dirname string) error {
 {{< div comment >}}
 Watch the given directory.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 	err = watcher.Add(dirname)
@@ -1176,7 +1176,7 @@ Watch the given directory.
 If the entry is a directory, watch for creation of or changes to a
 Go file under that dir of the same name as the dir, e.g. `watch/watch.go`.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 
@@ -1188,7 +1188,7 @@ Go file under that dir of the same name as the dir, e.g. `watch/watch.go`.
 {{< div comment >}}
 ignore dot folders
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 			if fname[0] == '.' {
@@ -1203,7 +1203,7 @@ ignore dot folders
 {{< div comment >}}
 Watch the subdir for any changes.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 			err = watcher.Add(filepath.Join(dirname, fname))
@@ -1222,7 +1222,7 @@ Watch the subdir for any changes.
 If the entry is a filename, and if it is a Go file, and if the name
 matches the current dir name, like "watch/watch.go", watch this file.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 			if fname == dirBasename+".go" {
@@ -1244,7 +1244,7 @@ matches the current dir name, like "watch/watch.go", watch this file.
 {{< div comment >}}
 Avoid that deadlock detection kicks in.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 	watchdog := time.NewTicker(10 * time.Second)
@@ -1257,7 +1257,7 @@ Avoid that deadlock detection kicks in.
 {{< div comment >}}
 Now look out for FS events.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 	for {
@@ -1277,7 +1277,7 @@ Now look out for FS events.
 {{< div comment >}}
 If the path matches <name>/<name>.go or ...go2,
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 				if f == d+e && (e == ".go" || e == ".go2") { // the second part rules out ".go~" or ".go2~" etc.
@@ -1289,7 +1289,7 @@ If the path matches <name>/<name>.go or ...go2,
 {{< div comment >}}
 Only convert a .go file if no .go2 file of the same name exists
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 					if e == ".go" {
@@ -1302,7 +1302,7 @@ Only convert a .go file if no .go2 file of the same name exists
 {{< div comment >}}
 go2 file of the same base name exists, leave .go file alone
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 							break
@@ -1316,7 +1316,7 @@ go2 file of the same base name exists, leave .go file alone
 {{< div comment >}}
 give the file system a second to consolidate the write, then convert the file
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 					time.AfterFunc(time.Second, newConvertFunc(event.Name))
@@ -1341,7 +1341,7 @@ Input: directory to start. This directory should contain
 blog directories containing go files that follow the pattern
 `abc/abc.go`.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 func convertAll(dir string) error {
@@ -1374,7 +1374,7 @@ func convertAll(dir string) error {
 {{< div comment >}}
 ## main - Where it all starts
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 func main() {
@@ -1387,7 +1387,7 @@ func main() {
 {{< div comment >}}
 Start the Gops agent.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 	if err := agent.Listen(agent.Options{}); err != nil {
@@ -1405,7 +1405,7 @@ Start the Gops agent.
 {{< div comment >}}
 If $HUGODIR is set and -hugo isn't, copy $HUGODIR into *hugoDir.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 	if len(*hugoDir) == 0 && len(hugoDirEnv) > 0 {
@@ -1420,7 +1420,7 @@ If $HUGODIR is set and -hugo isn't, copy $HUGODIR into *hugoDir.
 {{< div comment >}}
 If *hugoDir is set and *outDir isn't, use *hugoDir. Also set the subdirs accordingly.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 	if len(*hugoDir) > 0 && len(*outDir) == 0 {
@@ -1438,7 +1438,7 @@ If *hugoDir is set and *outDir isn't, use *hugoDir. Also set the subdirs accordi
 {{< div comment >}}
 With `-watch=<dir>`, watch the subdirs of `<dir>` for changes.
 {{< divend >}} <!--comment-->
-{{< div code language-klipse-go >}}
+{{< div code >}}
 
 ```go
 	if len(*watch) > 0 {

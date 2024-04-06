@@ -487,8 +487,7 @@ func convert(in, base string) (out string) {
 			} else {
 				status = code
 				out += divEnd("comment")
-				// class language-klipse-go is used by the Klipse plugin.
-				out += div("code language-klipse-go")
+				out += div("code")
 				out += "\n```go\n"
 				out += line + "\n"
 				continue
