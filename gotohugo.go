@@ -335,7 +335,7 @@ func replaceHypeTag(line, base string) (out string, found bool, err error) {
 	}
 	// substitute the Hype HTML snippet for the HYPE tag.
 	path := matches[1]
-	out = getHTMLSnippet(filepath.Join(*outDir, mediaDir, base, path), base)
+	out = getHTMLSnippet(filepath.Join(*outDir, postDir, base, "media", path), base)
 	out += "<noscript class=\"nohype\"><em>Please enable JavaScript to view the animation.</em></noscript>\n"
 	return out, true, err
 }
